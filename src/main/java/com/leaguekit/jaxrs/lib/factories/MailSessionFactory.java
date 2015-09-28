@@ -1,4 +1,4 @@
-package com.leaguekit.oauth.factories;
+package com.leaguekit.jaxrs.lib.factories;
 
 import org.glassfish.hk2.api.Factory;
 import org.slf4j.Logger;

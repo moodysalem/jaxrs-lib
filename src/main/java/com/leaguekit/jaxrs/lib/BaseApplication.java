@@ -1,4 +1,4 @@
-package com.leaguekit.oauth;
+package com.leaguekit.jaxrs.lib;
 
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.message.GZipEncoder;

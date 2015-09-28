@@ -1,9 +1,9 @@
-package com.leaguekit.oauth.providers;
+package com.leaguekit.jaxrs.lib.providers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.leaguekit.oauth.exceptions.RequestProcessingException;
+import com.leaguekit.jaxrs.lib.exceptions.RequestProcessingException;
 
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;

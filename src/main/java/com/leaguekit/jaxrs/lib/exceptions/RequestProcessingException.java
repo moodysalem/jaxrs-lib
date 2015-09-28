@@ -1,4 +1,4 @@
-package com.leaguekit.oauth.exceptions;
+package com.leaguekit.jaxrs.lib.exceptions;
 
 
 import javax.ws.rs.core.Response;
