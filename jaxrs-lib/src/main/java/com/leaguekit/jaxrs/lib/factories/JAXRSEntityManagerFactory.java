@@ -88,7 +88,7 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
     }
 
     private void runMigrations() {
-        if (changelogFile == null) {
+        if (changelogFile != null) {
             try (Connection c = DriverManager.getConnection(url, user, password)) {
                 LOG.info("Running Migrations");
                 // first run the liquibase migrations against the database
