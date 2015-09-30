@@ -57,12 +57,20 @@
         <version>${hibernate.version}</version>
       </dependency>
 
+      <!-- provides localdate support for hibernate -->
+      <dependency>
+        <groupId>com.github.marschall</groupId>
+        <artifactId>threeten-jpa</artifactId>
+        <version>1.2.1</version>
+      </dependency>
+
       <!-- hibernate validation -->
       <dependency>
         <groupId>org.hibernate</groupId>
         <artifactId>hibernate-validator</artifactId>
         <version>5.1.3.Final</version>
       </dependency>
+
       <!-- expression language implementation required dependency of hibernate validation -->
       <dependency>
         <groupId>org.glassfish.web</groupId>
@@ -123,11 +131,6 @@
         <version>1.9.5</version>
       </dependency>
 
-      <dependency>
-        <groupId>com.github.marschall</groupId>
-        <artifactId>threeten-jpa</artifactId>
-        <version>1.2.1</version>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
