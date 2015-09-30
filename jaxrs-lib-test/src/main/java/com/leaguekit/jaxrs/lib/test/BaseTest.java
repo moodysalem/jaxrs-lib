@@ -1,3 +1,5 @@
+package com.leaguekit.jaxrs.lib.test;
+
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.message.GZipEncoder;
