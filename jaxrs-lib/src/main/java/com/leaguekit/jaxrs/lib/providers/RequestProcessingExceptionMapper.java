@@ -13,7 +13,6 @@ import java.util.List;
 @Provider
 public class RequestProcessingExceptionMapper implements ExceptionMapper<RequestProcessingException> {
 
-
     private static final ObjectMapper om = new ObjectMapper();
 
     public static final String MESSAGE_KEY = "message";
@@ -21,7 +20,6 @@ public class RequestProcessingExceptionMapper implements ExceptionMapper<Request
 
     @Override
     public Response toResponse(RequestProcessingException e) {
-
         ArrayNode errors = om.createArrayNode();
 
         List<String> errStrings = e.getErrors();

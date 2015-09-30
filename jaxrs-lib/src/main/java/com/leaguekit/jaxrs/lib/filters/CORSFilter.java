@@ -19,10 +19,9 @@ public class CORSFilter implements ContainerResponseFilter {
     public static final int ACCESS_CONTROL_CACHE_SECONDS = 2592000;
 
     @Override
-    public void filter(ContainerRequestContext containerRequestContext, ContainerResponseContext containerResponseContext) throws IOException {
-
+    public void filter(ContainerRequestContext containerRequestContext, ContainerResponseContext containerResponseContext)
+        throws IOException {
         MultivaluedMap<String, Object> headers = containerResponseContext.getHeaders();
-        headers.remove("X-Powered-By");
 
         // only if origin header is present do we slap on these origin headers
         if (containerRequestContext.getHeaderString("Origin") != null) {
