@@ -77,6 +77,11 @@
       <groupId>javax.mail</groupId>
       <artifactId>mail</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>com.github.marschall</groupId>
+      <artifactId>threeten-jpa</artifactId>
+    </dependency>
   </dependencies>
 
 </project>

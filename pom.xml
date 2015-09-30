@@ -122,6 +122,12 @@
         <artifactId>mockito-all</artifactId>
         <version>1.9.5</version>
       </dependency>
+
+      <dependency>
+        <groupId>com.github.marschall</groupId>
+        <artifactId>threeten-jpa</artifactId>
+        <version>1.2.1</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
