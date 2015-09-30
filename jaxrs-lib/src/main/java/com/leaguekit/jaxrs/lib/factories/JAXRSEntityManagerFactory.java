@@ -14,32 +14,41 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.TimeZone;
 
-public class EntityManagerFactory implements Factory<EntityManager> {
+public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
 
     private String url;
     private String user;
     private String password;
+    private String persistenceUnit;
+    private String changelogFile;
+    private String context;
     private boolean showSql;
 
-    public EntityManagerFactory(String url, String user, String password, boolean showSql) {
+    public JAXRSEntityManagerFactory(String url, String user, String password, String persistenceUnit,
+                                     String changelogFile, boolean showSql, String context) {
         this.url = url;
         this.user = user;
         this.password = password;
+        this.persistenceUnit = persistenceUnit;
         this.showSql = showSql;
+        this.changelogFile = changelogFile;
+        this.context = context;
         runMigrations();
         _emf = createEMF();
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(EntityManagerFactory.class);
-    private static final String[] DRIVERS = new String[]{"com.mysql.jdbc.Driver", "org.postgresql.Driver",
-        "oracle.jdbc.driver.OracleDriver", "com.microsoft.sqlserver.jdbc.SQLServerDriver"};
+    private static final Logger LOG = LoggerFactory.getLogger(JAXRSEntityManagerFactory.class);
+    private static final String[] DRIVERS = new String[]{
+        "com.mysql.jdbc.Driver",
+        "org.postgresql.Driver",
+        "oracle.jdbc.driver.OracleDriver",
+        "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+    };
 
     private javax.persistence.EntityManagerFactory _emf;
 
     static {
-        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         loadDrivers();
     }
 
@@ -75,19 +84,21 @@ public class EntityManagerFactory implements Factory<EntityManager> {
         properties.setProperty("hibernate.c3p0.max_statements", "50");
         properties.setProperty("hibernate.default_batch_fetch_size", "32");
 
-        return Persistence.createEntityManagerFactory("leaguekit-hibernate", properties);
+        return Persistence.createEntityManagerFactory(persistenceUnit, properties);
     }
 
     private void runMigrations() {
-        try (Connection c = DriverManager.getConnection(url, user, password)) {
-            LOG.info("Running Migrations");
-            // first run the liquibase migrations against the database
-            Liquibase lb = new Liquibase("db/master-changelog.xml", new ClassLoaderResourceAccessor(), new JdbcConnection(c));
-            lb.update((showSql) ? "test" : "prod");
-        } catch (LiquibaseException e) {
-            LOG.error("Liquibase exception thrown while trying to run migrations", e);
-        } catch (SQLException e) {
-            LOG.error("SQL Exception thrown while trying to open a connection", e);
+        if (changelogFile == null) {
+            try (Connection c = DriverManager.getConnection(url, user, password)) {
+                LOG.info("Running Migrations");
+                // first run the liquibase migrations against the database
+                Liquibase lb = new Liquibase("db/master-changelog.xml", new ClassLoaderResourceAccessor(), new JdbcConnection(c));
+                lb.update(context);
+            } catch (LiquibaseException e) {
+                LOG.error("Liquibase exception thrown while trying to run migrations", e);
+            } catch (SQLException e) {
+                LOG.error("SQL Exception thrown while trying to open a connection", e);
+            }
         }
     }
 

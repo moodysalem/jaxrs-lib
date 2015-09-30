@@ -1,6 +1,5 @@
 package com.leaguekit.jaxrs.lib.exceptions;
 
-
 import javax.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,7 +49,7 @@ public class RequestProcessingException extends RuntimeException {
         return join(this.errors, "; ");
     }
 
-    private static String join (List<String> strings, String separator) {
+    private static String join(List<String> strings, String separator) {
         if (strings == null) {
             return null;
         }
