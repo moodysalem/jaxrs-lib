@@ -5,8 +5,6 @@ import liquibase.database.jvm.JdbcConnection;
 import liquibase.exception.LiquibaseException;
 import liquibase.resource.ClassLoaderResourceAccessor;
 import org.glassfish.hk2.api.Factory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.persistence.EntityManager;
 import javax.persistence.Persistence;
@@ -14,6 +12,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
 
@@ -38,7 +38,7 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
         _emf = createEMF();
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(JAXRSEntityManagerFactory.class);
+    private static final Logger LOG = Logger.getLogger(JAXRSEntityManagerFactory.class.getName());
     private static final String[] DRIVERS = new String[]{
         "com.mysql.jdbc.Driver",
         "org.postgresql.Driver",
@@ -58,7 +58,7 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
                 Class.forName(driverName);
                 LOG.info("JDBC Driver loaded: " + driverName);
             } catch (ClassNotFoundException e) {
-                LOG.error("JDBC Driver not found in classpath. This is benign if the driver is not needed: " + driverName);
+                LOG.warning("JDBC Driver not found in classpath. This is benign if the driver is not needed: " + driverName);
             }
         }
     }
@@ -95,10 +95,12 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
                 Liquibase lb = new Liquibase("db/master-changelog.xml", new ClassLoaderResourceAccessor(), new JdbcConnection(c));
                 lb.update(context);
             } catch (LiquibaseException e) {
-                LOG.error("Liquibase exception thrown while trying to run migrations", e);
+                LOG.log(Level.SEVERE, "Liquibase exception thrown while trying to run migrations", e);
             } catch (SQLException e) {
-                LOG.error("SQL Exception thrown while trying to open a connection", e);
+                LOG.log(Level.SEVERE, "SQL Exception thrown while trying to open a connection", e);
             }
+        } else {
+            LOG.info("No changelog file specified, not running migrations.");
         }
     }
 

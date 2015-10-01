@@ -1,15 +1,14 @@
 package com.leaguekit.jaxrs.lib.factories;
 
 import org.glassfish.hk2.api.Factory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.mail.PasswordAuthentication;
 import javax.mail.Session;
 import java.util.Properties;
+import java.util.logging.Logger;
 
 public class MailSessionFactory implements Factory<Session> {
-    private static final Logger LOG = LoggerFactory.getLogger(MailSessionFactory.class);
+    private static final Logger LOG = Logger.getLogger(MailSessionFactory.class.getName());
 
     private Session session;
 
@@ -27,7 +26,7 @@ public class MailSessionFactory implements Factory<Session> {
         props.put("mail.smtp.starttls.enable", "true");
         props.put("mail.smtp.starttls.required", "true");
 
-        LOG.debug("Created mail session with the following properties", props.toString());
+        LOG.info("Created mail session with the following properties: " + props.toString());
 
         // Get the Session object
         session = Session.getInstance(props,
@@ -40,7 +39,7 @@ public class MailSessionFactory implements Factory<Session> {
 
     @Override
     public Session provide() {
-        LOG.debug("Distributing mail session.");
+        LOG.info("Distributing mail session.");
         return session;
     }
 
