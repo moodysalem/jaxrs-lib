@@ -78,9 +78,16 @@
       <artifactId>mail</artifactId>
     </dependency>
 
+    <!-- for localdate use in hibernate  -->
     <dependency>
       <groupId>com.github.marschall</groupId>
       <artifactId>threeten-jpa</artifactId>
+    </dependency>
+
+    <!-- freemarker template feature -->
+    <dependency>
+      <groupId>org.glassfish.jersey.ext</groupId>
+      <artifactId>jersey-mvc-freemarker</artifactId>
     </dependency>
   </dependencies>
 
