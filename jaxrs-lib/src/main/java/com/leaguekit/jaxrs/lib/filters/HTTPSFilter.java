@@ -19,11 +19,14 @@ public class HTTPSFilter implements ContainerRequestFilter {
         if (proto != null && !proto.equalsIgnoreCase("HTTPS")) {
             // forward the client to the https version of the site
             containerRequestContext.abortWith(
-                Response.temporaryRedirect(
-                    containerRequestContext.getUriInfo().getRequestUriBuilder()
-                        .replacePath("")
-                        .build()
-                ).build()
+                Response.status(Response.Status.FOUND)
+                    .header("Location",
+                        containerRequestContext.getUriInfo().getRequestUriBuilder()
+                            .replacePath("")
+                            .build()
+                            .toURL()
+                            .toString()
+                    ).build()
             );
         }
     }
