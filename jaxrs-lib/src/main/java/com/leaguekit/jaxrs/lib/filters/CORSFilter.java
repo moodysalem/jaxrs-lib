@@ -51,7 +51,7 @@ public class CORSFilter implements ContainerResponseFilter {
             Set<String> customHeaders = containerResponseContext.getHeaders().keySet().stream()
                 .filter((s) -> s != null && s.toUpperCase().startsWith("X-")).collect(Collectors.toSet());
             if (customHeaders.size() > 0) {
-                headers.putSingle(ACCESS_CONTROL_EXPOSE_HEADERS, customHeaders.stream().collect(Collectors.joining(","));
+                headers.putSingle(ACCESS_CONTROL_EXPOSE_HEADERS, customHeaders.stream().collect(Collectors.joining(",")));
             }
 
             // allow browser to cache this forever
