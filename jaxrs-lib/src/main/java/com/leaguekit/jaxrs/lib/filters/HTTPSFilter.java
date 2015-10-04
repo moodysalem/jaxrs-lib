@@ -22,7 +22,10 @@ public class HTTPSFilter implements ContainerRequestFilter {
                 Response.status(Response.Status.FOUND)
                     .header("Location",
                         containerRequestContext.getUriInfo().getRequestUriBuilder()
+                            // remove all the information they shouldn't have communicated over http
                             .replacePath("")
+                            .replaceQuery("")
+                            .replaceMatrix("")
                             .build()
                             .toURL()
                             .toString()
