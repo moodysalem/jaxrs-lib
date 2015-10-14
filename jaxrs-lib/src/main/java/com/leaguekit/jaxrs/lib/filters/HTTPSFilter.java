@@ -25,7 +25,6 @@ public class HTTPSFilter implements ContainerRequestFilter {
                             // remove all the information they shouldn't have communicated over http
                             .replacePath("")
                             .replaceQuery("")
-                            .replaceMatrix("")
                             .build()
                             .toURL()
                             .toString()
