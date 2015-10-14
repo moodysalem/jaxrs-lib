@@ -3,7 +3,7 @@ package com.leaguekit.jaxrs.lib;
 import com.leaguekit.jaxrs.lib.filters.CORSFilter;
 import com.leaguekit.jaxrs.lib.filters.HTTPSFilter;
 import com.leaguekit.jaxrs.lib.providers.RequestProcessingExceptionMapper;
-import com.leaguekit.jaxrs.lib.providers.ClientErrorServerErrorExceptionMapper;
+import com.leaguekit.jaxrs.lib.providers.WebApplicationExceptionMapper;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.message.GZipEncoder;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -20,7 +20,7 @@ public class BaseApplication extends ResourceConfig {
         register(HTTPSFilter.class);
 
         register(RequestProcessingExceptionMapper.class);
-        register(ClientErrorServerErrorExceptionMapper.class);
+        register(WebApplicationExceptionMapper.class);
 
         EncodingFilter.enableFor(this, GZipEncoder.class);
     }
