@@ -11,17 +11,19 @@ import java.io.IOException;
 @PreMatching
 public class HTTPSFilter implements ContainerRequestFilter {
     public static final String PROTO_HEADER = "X-Forwarded-Proto";
+    public static final String HTTPS = "https";
 
     @Override
     public void filter(ContainerRequestContext containerRequestContext) throws IOException {
         String proto = containerRequestContext.getHeaderString(PROTO_HEADER);
 
-        if (proto != null && !proto.equalsIgnoreCase("HTTPS")) {
+        if (proto != null && !proto.equalsIgnoreCase(HTTPS)) {
             // forward the client to the https version of the site
             containerRequestContext.abortWith(
                 Response.status(Response.Status.FOUND)
                     .header("Location",
                         containerRequestContext.getUriInfo().getRequestUriBuilder()
+                            .scheme(HTTPS)
                             // remove all the information they shouldn't have communicated over http
                             .replacePath("")
                             .replaceQuery("")
