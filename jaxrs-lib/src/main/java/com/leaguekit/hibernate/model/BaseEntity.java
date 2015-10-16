@@ -13,11 +13,11 @@ public class BaseEntity {
     @Id
     @Column(name = "id", updatable = false, nullable = false)
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private Long id;
+    private long id;
 
     @Version
     @Column(name = "version", nullable = false)
-    private Long version;
+    private long version;
 
     @JsonIgnore
     @Column(name = "created", updatable = false, nullable = false)
@@ -29,7 +29,7 @@ public class BaseEntity {
     @Temporal(TemporalType.TIMESTAMP)
     private Date updated;
 
-    public Long getId() {
+    public long getId() {
         return id;
     }
 
@@ -37,7 +37,7 @@ public class BaseEntity {
         this.id = id;
     }
 
-    public Long getVersion() {
+    public long getVersion() {
         return version;
     }
 
@@ -62,13 +62,15 @@ public class BaseEntity {
     }
 
     public boolean equals(BaseEntity et) {
-        if (et != null &&
+        return et != null &&
             et.getClass().equals(this.getClass()) &&
-            et.getId() != null && this.getId() != null &&
-            et.getId().equals(this.getId())) {
-            return true;
-        }
-        return false;
+            et.getId() == this.getId() &&
+            et.getVersion() == this.getVersion();
+    }
+
+    @Override
+    public int hashCode() {
+        return Long.hashCode(id) * 31 + Long.hashCode(this.getVersion());
     }
 
     @PrePersist
