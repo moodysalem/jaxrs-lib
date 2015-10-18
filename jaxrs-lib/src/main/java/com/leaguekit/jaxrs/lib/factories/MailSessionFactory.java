@@ -15,8 +15,8 @@ public class MailSessionFactory implements Factory<Session> {
     public MailSessionFactory(String host, final String username, final String password, int port) {
         // Create a Properties object to contain connection configuration information.
         Properties props = new Properties();
-        props.put("mail.smtp.port", host);
-        props.put("mail.smtp.host", port);
+        props.put("mail.smtp.host", host);
+        props.put("mail.smtp.port", port);
 
         // Set properties indicating that we want to use STARTTLS to encrypt the connection.
         // The SMTP session will begin on an unencrypted connection, and then the client
