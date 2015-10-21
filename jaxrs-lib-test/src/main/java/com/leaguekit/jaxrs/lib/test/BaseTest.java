@@ -1,5 +1,6 @@
 package com.leaguekit.jaxrs.lib.test;
 
+import com.leaguekit.jaxrs.lib.contextresolvers.ObjectMapperContextResolver;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.message.GZipEncoder;
@@ -41,7 +42,7 @@ public abstract class BaseTest extends JerseyTestNg.ContainerPerClassTest {
 
     @Override
     protected void configureClient(ClientConfig config) {
-        config.register(JacksonFeature.class);
+        config.register(JacksonFeature.class).register(ObjectMapperContextResolver.class);
     }
 
 }
