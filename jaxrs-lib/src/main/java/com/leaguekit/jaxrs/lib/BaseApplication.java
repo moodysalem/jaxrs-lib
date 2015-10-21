@@ -14,6 +14,7 @@ public class BaseApplication extends ResourceConfig {
     public BaseApplication() {
         // register the things that are typically used by a JAX-RS application
         register(JacksonFeature.class);
+        property(FreemarkerMvcFeature.CACHE_TEMPLATES, true);
         register(FreemarkerMvcFeature.class);
 
         register(CORSFilter.class);
