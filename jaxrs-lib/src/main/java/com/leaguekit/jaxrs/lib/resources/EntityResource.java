@@ -19,6 +19,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public abstract class EntityResource<T extends BaseEntity> {
 
     private static final Logger LOG = Logger.getLogger(EntityResource.class.getName());
@@ -84,11 +86,12 @@ public abstract class EntityResource<T extends BaseEntity> {
 
 
     private String getQueryParameter(String param) {
-        return getContainerRequestContext().getUriInfo().getQueryParameters().getFirst(getFirstRecordQueryParameterName());
+        List<String> params = getQueryParameters(param);
+        return params != null && params.size() > 0 ? params.get(0) : null;
     }
 
     private List<String> getQueryParameters(String param) {
-        return getContainerRequestContext().getUriInfo().getQueryParameters().get(getFirstRecordQueryParameterName());
+        return getContainerRequestContext().getUriInfo().getQueryParameters().get(param);
     }
 
     private int getStart() {
@@ -96,18 +99,20 @@ public abstract class EntityResource<T extends BaseEntity> {
         if (start != null) {
             try {
                 return Math.max(Integer.parseInt(start), 0);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Invalid start received", e);
             }
         }
         return 0;
     }
 
     private int getCount() {
-        String count = getQueryParameter(getFirstRecordQueryParameterName());
+        String count = getQueryParameter(getCountQueryParameterName());
         if (count != null) {
             try {
                 return Math.max(Math.min(Integer.parseInt(count), getMaxPerPage()), 1);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Invalid count received", e);
             }
         }
         return getDefaultRecordsPerPage();
@@ -191,7 +196,7 @@ public abstract class EntityResource<T extends BaseEntity> {
 
         // parse the request to return the orders that should be applied
         List<Order> orderBys = getOrderFromRequest(from);
-        if (orderBys.size() >0) {
+        if (orderBys.size() > 0) {
             Order[] oArray = new Order[orderBys.size()];
             orderBys.toArray(oArray);
             cq.orderBy(orderBys);
@@ -452,6 +457,7 @@ public abstract class EntityResource<T extends BaseEntity> {
 
     ////////////////////////////TRANSACTION HELPERS////////////////////////////////////////////////////
     private EntityTransaction etx;
+
     protected void openTransaction() {
         if (etx != null) {
             throw new RequestProcessingException(Response.Status.INTERNAL_SERVER_ERROR, "Transaction was opened twice.");

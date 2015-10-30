@@ -9,7 +9,6 @@ import org.testng.annotations.Test;
 
 import javax.inject.Inject;
 import javax.persistence.Column;
-import javax.persistence.Entity;
 import javax.persistence.EntityManager;
 import javax.persistence.Table;
 import javax.persistence.criteria.Predicate;
@@ -17,13 +16,26 @@ import javax.persistence.criteria.Root;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import java.util.List;
 
+import static org.testng.AssertJUnit.assertTrue;
+
 public class EntityResourceTest extends BaseTest {
-    @Entity
+
+    public static final String X_TOTAL_COUNT = "X-Total-Count";
+    public static final String X_START = "X-Start";
+    public static final String X_COUNT = "X-Count";
+    public static final String START = "start";
+    public static final String COUNT = "count";
+    public static final String SORT = "sort";
+
+    @javax.persistence.Entity
     @Table(name = "MyEntity")
     public static class MyEntity extends BaseEntity {
         @Column(name = "hometown")
@@ -39,8 +51,6 @@ public class EntityResourceTest extends BaseTest {
     }
 
     @Path("myentity")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
     public static class MyEntityResource extends EntityResource<MyEntity> {
 
         @Context
@@ -61,7 +71,7 @@ public class EntityResourceTest extends BaseTest {
 
         @Override
         public String getSortQueryParameterName() {
-            return "sort";
+            return SORT;
         }
 
         @Override
@@ -81,12 +91,12 @@ public class EntityResourceTest extends BaseTest {
 
         @Override
         public String getFirstRecordQueryParameterName() {
-            return "start";
+            return START;
         }
 
         @Override
         public String getCountQueryParameterName() {
-            return "count";
+            return COUNT;
         }
 
         @Override
@@ -101,17 +111,17 @@ public class EntityResourceTest extends BaseTest {
 
         @Override
         public String getFirstRecordHeader() {
-            return "X-Start";
+            return X_START;
         }
 
         @Override
         public String getCountHeader() {
-            return "X-Count";
+            return X_COUNT;
         }
 
         @Override
         public String getTotalCountHeader() {
-            return "X-Total-Count";
+            return X_TOTAL_COUNT;
         }
 
         @Override
@@ -183,6 +193,29 @@ public class EntityResourceTest extends BaseTest {
 
     @Test
     public void testEntityResource() {
-        target("myentity").request().get();
+        WebTarget wt = target("myentity");
+        assertTrue(wt.request().get().getStatus() == 200);
+
+        int i = 0;
+        while (i < 100) {
+            MyEntity me = new MyEntity();
+            me.setHometown("#" + i);
+            me = wt.request().post(Entity.json(me)).readEntity(MyEntity.class);
+            assertTrue(me.getId() > 0 && me.getHometown().equals("#" + i));
+            i++;
+        }
+
+
+        Response r = wt.queryParam(COUNT, 40).queryParam(START, 20)
+                .request().get();
+        assertTrue(r.readEntity(List.class).size() == 40);
+        assertTrue(r.getStatus() == 200);
+        assertTrue(r.getHeaderString(X_TOTAL_COUNT).equals("100"));
+        assertTrue(r.getHeaderString(X_START).equals("20"));
+        assertTrue(r.getHeaderString(X_COUNT).equals("40"));
+
+
+
+
     }
 }
