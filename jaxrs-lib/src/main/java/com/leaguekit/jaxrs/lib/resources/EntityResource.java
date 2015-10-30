@@ -17,6 +17,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 public abstract class EntityResource<T extends BaseEntity> {
 
@@ -227,7 +228,7 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @return list of orders to apply to the criteria in proper order
      */
     protected void getOrderFromRequest(Root<T> from, List<Order> orders) {
-        List<String> sorts = getQueryParameters(getSortQueryParameterName());
+        List<String> sorts = getQueryParameters(Pattern.quote(getSortQueryParameterName()));
         if (sorts == null || sorts.size() == 0) {
             return;
         }
@@ -235,7 +236,7 @@ public abstract class EntityResource<T extends BaseEntity> {
         CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
 
         for (String sortOrder : sorts) {
-            String[] pieces = sortOrder.split(getSortInfoSeparator());
+            String[] pieces = sortOrder.split(Pattern.quote(getSortInfoSeparator()));
             if (pieces.length <= 1) {
                 continue;
             }
