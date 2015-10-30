@@ -1,4 +1,5 @@
 import com.leaguekit.hibernate.model.BaseEntity;
+import com.leaguekit.jaxrs.lib.BaseApplication;
 import com.leaguekit.jaxrs.lib.factories.JAXRSEntityManagerFactory;
 import com.leaguekit.jaxrs.lib.resources.EntityResource;
 import com.leaguekit.jaxrs.lib.test.BaseTest;
@@ -13,14 +14,11 @@ import javax.persistence.EntityManager;
 import javax.persistence.Table;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
-import javax.ws.rs.Consumes;
 import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.List;
 
@@ -131,7 +129,7 @@ public class EntityResourceTest extends BaseTest {
 
         @Override
         public boolean canCreate(MyEntity entity) {
-            return true;
+            return !"ABC".equals(entity.getHometown());
         }
 
         @Override
@@ -177,7 +175,17 @@ public class EntityResourceTest extends BaseTest {
 
     @Override
     public ResourceConfig getResourceConfig() {
-        ResourceConfig rc = new ResourceConfig();
+        ResourceConfig rc = new BaseApplication() {
+            @Override
+            public boolean forceHttps() {
+                return true;
+            }
+
+            @Override
+            public boolean allowCORS() {
+                return true;
+            }
+        };
         // bind the factory
         rc.register(new AbstractBinder() {
             @Override
@@ -189,6 +197,28 @@ public class EntityResourceTest extends BaseTest {
         // register the resource
         rc.register(MyEntityResource.class);
         return rc;
+    }
+
+
+    @Test
+    public void testForbiddenPost() {
+        WebTarget wt = target("myentity");
+        MyEntity me = new MyEntity();
+        me.setHometown("ABC");
+        Response r = wt.request().post(Entity.json(me));
+        assertTrue(r.getStatus() == 403);
+    }
+
+    @Test
+    public void testPut() {
+        WebTarget wt = target("myentity");
+        MyEntity me = new MyEntity();
+        me.setHometown("Chicago");
+        me = wt.request().post(Entity.json(me), MyEntity.class);
+
+        me.setHometown("Austin");
+        me = wt.path(Long.toString(me.getId())).request().put(Entity.json(me), MyEntity.class);
+        assertTrue(me.getVersion() == 1);
     }
 
     @Test
@@ -205,7 +235,6 @@ public class EntityResourceTest extends BaseTest {
             i++;
         }
 
-
         Response r = wt.queryParam(COUNT, 40).queryParam(START, 20)
                 .request().get();
         assertTrue(r.readEntity(List.class).size() == 40);
@@ -214,7 +243,8 @@ public class EntityResourceTest extends BaseTest {
         assertTrue(r.getHeaderString(X_START).equals("20"));
         assertTrue(r.getHeaderString(X_COUNT).equals("40"));
 
-
+        assertTrue(wt.queryParam(COUNT, 1000).queryParam(START, 20)
+                .request().get().getHeaderString(X_COUNT).equals("500"));
 
 
     }
