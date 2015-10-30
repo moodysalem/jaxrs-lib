@@ -66,7 +66,17 @@ public class ExampleBaseTest extends BaseTest {
 
     @Override
     public ResourceConfig getResourceConfig() {
-        ResourceConfig testConfig = new BaseApplication();
+        ResourceConfig testConfig = new BaseApplication() {
+            @Override
+            public boolean forceHttps() {
+                return false;
+            }
+
+            @Override
+            public boolean allowCORS() {
+                return true;
+            }
+        };
         testConfig.register(ExampleResource.class);
         return testConfig;
     }

@@ -12,7 +12,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.filter.EncodingFilter;
 import org.glassfish.jersey.server.mvc.freemarker.FreemarkerMvcFeature;
 
-public class BaseApplication extends ResourceConfig {
+public abstract class BaseApplication extends ResourceConfig {
     public BaseApplication() {
         // register the things that are typically used by a JAX-RS application
 
@@ -30,10 +30,14 @@ public class BaseApplication extends ResourceConfig {
         register(FreemarkerMvcFeature.class);
 
         // send CORS headers
-        register(CORSFilter.class);
+        if (allowCORS()) {
+            register(CORSFilter.class);
+        }
 
         // force HTTPS behind ELB
-        register(HTTPSFilter.class);
+        if (forceHttps()) {
+            register(HTTPSFilter.class);
+        }
 
         // custom exception handler
         register(RequestProcessingExceptionMapper.class);
@@ -43,4 +47,8 @@ public class BaseApplication extends ResourceConfig {
 
         EncodingFilter.enableFor(this, GZipEncoder.class);
     }
+
+    public abstract boolean forceHttps();
+
+    public abstract boolean allowCORS();
 }

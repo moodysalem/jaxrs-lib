@@ -2,6 +2,9 @@ package com.leaguekit.util;
 
 import java.security.SecureRandom;
 
+/**
+ * Provides helper methods for generating a secure random string
+ */
 public class RandomStringUtil {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -36,5 +39,4 @@ public class RandomStringUtil {
         }
         return sb.toString();
     }
-
 }
