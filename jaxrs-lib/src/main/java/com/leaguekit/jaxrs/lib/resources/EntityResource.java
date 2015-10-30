@@ -179,19 +179,24 @@ public abstract class EntityResource<T extends BaseEntity> {
 
         CriteriaQuery<T> cq = cb.createQuery(this.getEntityClass());
         Root<T> from = cq.from(this.getEntityClass());
+        cq.select(from);
 
         List<Predicate> predicates = getPredicatesFromRequest(from);
-        Predicate[] pArray = new Predicate[predicates.size()];
-        predicates.toArray(pArray);
+        if (predicates.size() > 0) {
+            Predicate[] pArray = new Predicate[predicates.size()];
+            predicates.toArray(pArray);
+            cq.where(pArray);
+        }
 
         // parse the request to return the orders that should be applied
         List<Order> orderBys = getOrderFromRequest(from);
-        Order[] oArray = new Order[orderBys.size()];
-        orderBys.toArray(oArray);
+        if (orderBys.size() >0) {
+            Order[] oArray = new Order[orderBys.size()];
+            orderBys.toArray(oArray);
+            cq.orderBy(orderBys);
+        }
 
-        CriteriaQuery<T> select = cq.select(from).where(pArray).orderBy(oArray);
-
-        return em.createQuery(select)
+        return em.createQuery(cq)
                 .setMaxResults(numRecords)
                 .setFirstResult(firstRecord)
                 .getResultList();

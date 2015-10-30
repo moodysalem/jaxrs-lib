@@ -92,7 +92,7 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
             try (Connection c = DriverManager.getConnection(url, user, password)) {
                 LOG.info("Running Migrations");
                 // first run the liquibase migrations against the database
-                Liquibase lb = new Liquibase("db/master-changelog.xml", new ClassLoaderResourceAccessor(), new JdbcConnection(c));
+                Liquibase lb = new Liquibase(changelogFile, new ClassLoaderResourceAccessor(), new JdbcConnection(c));
                 lb.update(context);
             } catch (LiquibaseException e) {
                 LOG.log(Level.SEVERE, "Liquibase exception thrown while trying to run migrations", e);
