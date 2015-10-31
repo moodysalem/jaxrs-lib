@@ -22,10 +22,9 @@ public class HTTPSFilter implements ContainerRequestFilter {
             containerRequestContext.abortWith(
                 Response.status(Response.Status.FOUND)
                     .header("Location",
-                        containerRequestContext.getUriInfo().getRequestUriBuilder()
+                        containerRequestContext.getUriInfo().getBaseUriBuilder()
                             .scheme(HTTPS)
                             // remove all the information they shouldn't have communicated over http
-                            .replacePath("")
                             .replaceQuery("")
                             .build()
                             .toURL()
