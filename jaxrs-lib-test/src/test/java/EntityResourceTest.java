@@ -222,6 +222,17 @@ public class EntityResourceTest extends BaseTest {
     }
 
     @Test
+    public void testDelete() {
+        WebTarget wt = target("myentity");
+        MyEntity me = new MyEntity();
+        me.setHometown("to delete");
+        me = wt.request().post(Entity.json(me), MyEntity.class);
+
+        Response del = wt.path(Long.toString(me.getId())).request().delete();
+        assertTrue(del.getStatus() == 204);
+    }
+
+    @Test
     public void testEntityResource() {
         WebTarget wt = target("myentity");
         assertTrue(wt.request().get().getStatus() == 200);
