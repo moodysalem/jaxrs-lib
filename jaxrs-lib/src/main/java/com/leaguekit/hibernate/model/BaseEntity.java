@@ -15,11 +15,11 @@ public class BaseEntity {
     @Id
     @Column(name = "id", updatable = false, nullable = false)
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private long id;
+    private Long id;
 
     @Version
     @Column(name = "version", nullable = false)
-    private long version;
+    private Long version;
 
     @JsonIgnore
     @Column(name = "created", updatable = false, nullable = false)
@@ -31,7 +31,7 @@ public class BaseEntity {
     @Temporal(TemporalType.TIMESTAMP)
     private Date updated;
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
@@ -39,7 +39,7 @@ public class BaseEntity {
         this.id = id;
     }
 
-    public long getVersion() {
+    public Long getVersion() {
         return version;
     }
 

@@ -78,7 +78,7 @@ public abstract class EntityResource<T extends BaseEntity> {
         T entity = getEntityWithId(id);
         if (entity == null) {
             throw new RequestProcessingException(Response.Status.NOT_FOUND,
-                    String.format(NOT_FOUND, getEntityName(), id));
+                String.format(NOT_FOUND, getEntityName(), id));
         }
         beforeSend(entity);
         return Response.ok(entity).build();
@@ -133,10 +133,10 @@ public abstract class EntityResource<T extends BaseEntity> {
 
         // return the filtered and mapped list of entities
         return Response.ok(entities)
-                .header(getFirstRecordHeader(), start)
-                .header(getCountHeader(), count)
-                .header(getTotalCountHeader(), totalCount)
-                .build();
+            .header(getFirstRecordHeader(), start)
+            .header(getCountHeader(), count)
+            .header(getTotalCountHeader(), totalCount)
+            .build();
     }
 
     /**
@@ -203,9 +203,9 @@ public abstract class EntityResource<T extends BaseEntity> {
         }
 
         return em.createQuery(cq)
-                .setMaxResults(numRecords)
-                .setFirstResult(firstRecord)
-                .getResultList();
+            .setMaxResults(numRecords)
+            .setFirstResult(firstRecord)
+            .getResultList();
     }
 
 
@@ -219,8 +219,8 @@ public abstract class EntityResource<T extends BaseEntity> {
     private void notNull(Object shouldNotBeNull, String nameOfParameter) {
         if (shouldNotBeNull == null) {
             throw new RequestProcessingException(
-                    Response.Status.BAD_REQUEST,
-                    String.format("%1$s should not be null.", nameOfParameter)
+                Response.Status.BAD_REQUEST,
+                String.format("%1$s should not be null.", nameOfParameter)
             );
         }
     }
@@ -291,13 +291,13 @@ public abstract class EntityResource<T extends BaseEntity> {
     @Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
     public Response post(T entity) {
         notNull(entity, getEntityName());
-        if (entity.getId() > 0) {
+        if (entity.getId() != null) {
             throw new RequestProcessingException(Response.Status.BAD_REQUEST,
-                    ID_SHOULD_NOT_BE_INCLUDED_IN_A_POST);
+                ID_SHOULD_NOT_BE_INCLUDED_IN_A_POST);
         }
         if (!canCreate(entity)) {
             throw new RequestProcessingException(Response.Status.FORBIDDEN,
-                    String.format(NOT_AUTHORIZED_TO_CREATE, getEntityName()));
+                String.format(NOT_AUTHORIZED_TO_CREATE, getEntityName()));
         }
         beforeCreate(entity);
         List<String> errors = validateEntity(entity);
@@ -313,9 +313,9 @@ public abstract class EntityResource<T extends BaseEntity> {
             rollback();
             LOG.log(Level.SEVERE, "Failed to create entity", e);
             throw new RequestProcessingException(
-                    Response.Status.CONFLICT,
-                    String.format(FAILED_TO_CREATE, getEntityName()),
-                    e.getMessage()
+                Response.Status.CONFLICT,
+                String.format(FAILED_TO_CREATE, getEntityName()),
+                e.getMessage()
             );
         }
         return Response.ok(entity).build();
@@ -341,17 +341,17 @@ public abstract class EntityResource<T extends BaseEntity> {
         // check the entity with this ID truly exists and is visible to the user
         if (entityToEdit == null) {
             throw new RequestProcessingException(Response.Status.NOT_FOUND,
-                    String.format(NOT_FOUND, getEntityName(), id));
+                String.format(NOT_FOUND, getEntityName(), id));
         }
         // check for permission to edit
         if (!canEdit(entityToEdit)) {
             throw new RequestProcessingException(Response.Status.FORBIDDEN,
-                    String.format(NOT_AUTHORIZED_TO_EDIT, getEntityName(), id));
+                String.format(NOT_AUTHORIZED_TO_EDIT, getEntityName(), id));
         }
         // check for version conflicts so we can give a more useful message
         if (entityToEdit.getVersion() != entity.getVersion()) {
             throw new RequestProcessingException(Response.Status.CONFLICT,
-                    String.format(VERSION_CONFLICT_ERROR, getEntityName(), id));
+                String.format(VERSION_CONFLICT_ERROR, getEntityName(), id));
         }
         // make sure the path param matches the id of the entity they are putting
         entity.setId(id);
@@ -376,9 +376,9 @@ public abstract class EntityResource<T extends BaseEntity> {
             LOG.log(Level.SEVERE, "Failed to save changes to single entity", e);
             rollback();
             throw new RequestProcessingException(
-                    Response.Status.INTERNAL_SERVER_ERROR,
-                    String.format(FAILED_TO_SAVE, getEntityName(), id),
-                    e.getMessage()
+                Response.Status.INTERNAL_SERVER_ERROR,
+                String.format(FAILED_TO_SAVE, getEntityName(), id),
+                e.getMessage()
             );
         }
         return get(id);
@@ -393,7 +393,7 @@ public abstract class EntityResource<T extends BaseEntity> {
             openTransaction();
             for (T entity : entities) {
                 try {
-                    if (entity.getId() != 0) {
+                    if (entity.getId() != null) {
                         savedEntities.add((T) put(entity.getId(), entity).getEntity());
                     } else {
                         savedEntities.add((T) post(entity).getEntity());
@@ -426,12 +426,12 @@ public abstract class EntityResource<T extends BaseEntity> {
         T entityToDelete = getEntityWithId(id);
         if (entityToDelete == null) {
             throw new RequestProcessingException(Response.Status.NOT_FOUND,
-                    String.format(NOT_FOUND, getEntityName()));
+                String.format(NOT_FOUND, getEntityName()));
         }
         if (!canDelete(entityToDelete)) {
             throw new RequestProcessingException(
-                    Response.Status.FORBIDDEN,
-                    String.format(NOT_AUTHORIZED_TO_DELETE, getEntityName(), entityToDelete.getId())
+                Response.Status.FORBIDDEN,
+                String.format(NOT_AUTHORIZED_TO_DELETE, getEntityName(), entityToDelete.getId())
             );
         }
         try {
@@ -442,9 +442,9 @@ public abstract class EntityResource<T extends BaseEntity> {
             rollback();
             LOG.log(Level.SEVERE, "Failed to delete resource", e);
             throw new RequestProcessingException(
-                    Response.Status.CONFLICT,
-                    String.format(FAILED_TO_DELETE, getEntityName(), entityToDelete.getId()),
-                    e.getMessage()
+                Response.Status.CONFLICT,
+                String.format(FAILED_TO_DELETE, getEntityName(), entityToDelete.getId()),
+                e.getMessage()
             );
         }
         return Response.status(Response.Status.NO_CONTENT).build();
