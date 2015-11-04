@@ -2,12 +2,14 @@ package com.leaguekit.hibernate.model;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.voodoodyne.jackson.jsog.JSOGGenerator;
 
 import javax.persistence.*;
 import java.util.Date;
 
 @MappedSuperclass
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonIdentityInfo(generator = JSOGGenerator.class)
 public class BaseEntity {
     @Id
