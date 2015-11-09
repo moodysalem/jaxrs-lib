@@ -334,13 +334,13 @@ public abstract class EntityResource<T extends BaseEntity> {
             throw new RequestProcessingException(
                 Response.Status.CONFLICT,
                 String.format(FAILED_TO_CREATE, getEntityName()),
-                translateMessage(e)
+                translateExceptionToMessage(e)
             );
         }
         return Response.ok(entity).build();
     }
 
-    private String translateMessage(Exception e) {
+    private String translateExceptionToMessage(Exception e) {
         if (e == null) {
             return null;
         }
@@ -445,7 +445,7 @@ public abstract class EntityResource<T extends BaseEntity> {
             throw new RequestProcessingException(
                 Response.Status.INTERNAL_SERVER_ERROR,
                 String.format(FAILED_TO_SAVE, getEntityName(), id),
-                translateMessage(e)
+                translateExceptionToMessage(e)
             );
         }
         return get(id);
@@ -481,7 +481,7 @@ public abstract class EntityResource<T extends BaseEntity> {
             rollback();
             LOG.log(Level.SEVERE, "Failed to save collection edits", e);
             errors.add(FAILED_TO_COMMIT_COLLECTION_CHANGES);
-            errors.add(translateMessage(e));
+            errors.add(translateExceptionToMessage(e));
         }
         if (errors.size() > 0) {
             throw new RequestProcessingException(errors);
@@ -515,7 +515,7 @@ public abstract class EntityResource<T extends BaseEntity> {
             throw new RequestProcessingException(
                 Response.Status.CONFLICT,
                 String.format(FAILED_TO_DELETE, getEntityName(), entityToDelete.getId()),
-                e.getMessage()
+                translateExceptionToMessage(e)
             );
         }
         return Response.status(Response.Status.NO_CONTENT).build();
