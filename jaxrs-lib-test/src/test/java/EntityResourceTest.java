@@ -6,6 +6,7 @@ import com.leaguekit.jaxrs.lib.test.BaseTest;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.glassfish.jersey.process.internal.RequestScoped;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.hibernate.validator.constraints.NotBlank;
 import org.testng.annotations.Test;
 
 import javax.inject.Inject;
@@ -36,7 +37,8 @@ public class EntityResourceTest extends BaseTest {
     @javax.persistence.Entity
     @Table(name = "MyEntity")
     public static class MyEntity extends BaseEntity {
-        @Column(name = "hometown")
+        @NotBlank
+        @Column(name = "hometown", nullable = false, unique = true)
         private String hometown;
 
         public String getHometown() {
@@ -123,8 +125,18 @@ public class EntityResourceTest extends BaseTest {
         }
 
         @Override
+        public boolean isLoggedIn() {
+            return false;
+        }
+
+        @Override
         public Class<MyEntity> getEntityClass() {
             return MyEntity.class;
+        }
+
+        @Override
+        public boolean requiresLogin() {
+            return false;
         }
 
         @Override
@@ -191,7 +203,7 @@ public class EntityResourceTest extends BaseTest {
             @Override
             protected void configure() {
                 bindFactory(new JAXRSEntityManagerFactory("jdbc:h2:mem:tester;DB_CLOSE_DELAY=-1", "sa", "sa", "mpu", "ertest/schema.xml", true, null))
-                        .to(EntityManager.class).in(RequestScoped.class);
+                    .to(EntityManager.class).in(RequestScoped.class);
             }
         });
         // register the resource
@@ -241,13 +253,25 @@ public class EntityResourceTest extends BaseTest {
         while (i < 100) {
             MyEntity me = new MyEntity();
             me.setHometown("#" + i);
-            me = wt.request().post(Entity.json(me)).readEntity(MyEntity.class);
+            me = wt.request().post(Entity.json(me), MyEntity.class);
             assertTrue(me.getId() > 0 && me.getHometown().equals("#" + i));
             i++;
         }
 
+        // unique name
+        MyEntity me = new MyEntity();
+        me.setHometown("#1");
+        Response constraintViolation = wt.request().post(Entity.json(me));
+        assert constraintViolation.getStatus() != 200;
+
+        // empty name
+        MyEntity me2 = new MyEntity();
+        me.setHometown("   ");
+        Response emptyName = wt.request().post(Entity.json(me2));
+        assert emptyName.getStatus() != 200;
+
         Response r = wt.queryParam(COUNT, 40).queryParam(START, 20)
-                .request().get();
+            .request().get();
         assertTrue(r.readEntity(List.class).size() == 40);
         assertTrue(r.getStatus() == 200);
         assertTrue(r.getHeaderString(X_TOTAL_COUNT).equals("100"));
@@ -255,8 +279,9 @@ public class EntityResourceTest extends BaseTest {
         assertTrue(r.getHeaderString(X_COUNT).equals("40"));
 
         assertTrue(wt.queryParam(COUNT, 1000).queryParam(START, 20)
-                .request().get().getHeaderString(X_COUNT).equals("500"));
+            .request().get().getHeaderString(X_COUNT).equals("500"));
 
 
     }
+
 }

@@ -17,7 +17,9 @@
       <column name="version" type="BIGINT" defaultValue="0">
         <constraints nullable="false"/>
       </column>
-      <column name="hometown" type="VARCHAR(191)"/>
+      <column name="hometown" type="VARCHAR(191)">
+        <constraints unique="true"/>
+      </column>
     </createTable>
   </changeSet>
 

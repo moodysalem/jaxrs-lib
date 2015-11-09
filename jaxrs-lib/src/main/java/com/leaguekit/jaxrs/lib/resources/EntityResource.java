@@ -2,15 +2,19 @@ package com.leaguekit.jaxrs.lib.resources;
 
 import com.leaguekit.hibernate.model.BaseEntity;
 import com.leaguekit.jaxrs.lib.exceptions.RequestProcessingException;
+import org.hibernate.exception.ConstraintViolationException;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
+import javax.persistence.PersistenceException;
 import javax.persistence.criteria.*;
+import javax.validation.ConstraintViolation;
 import javax.ws.rs.*;
 import javax.ws.rs.Path;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -58,6 +62,9 @@ public abstract class EntityResource<T extends BaseEntity> {
     // name of the header that should include the total count of records that fit the criteria
     public abstract String getTotalCountHeader();
 
+    // whether the user is authenticated
+    public abstract boolean isLoggedIn();
+
     // error messages
     public static final String NOT_FOUND = "%1$s with ID %2$s not found.";
     public static final String NOT_AUTHORIZED_TO_CREATE = "Not authorized to create %1$s.";
@@ -72,9 +79,17 @@ public abstract class EntityResource<T extends BaseEntity> {
 
     ////////////////////////////////////GET/////////////////////////////////////////
 
+    private void mustBeLoggedIn() {
+        if (requiresLogin() && !isLoggedIn()) {
+            throw new RequestProcessingException(Response.Status.UNAUTHORIZED, "You must be logged in to access this resource.");
+        }
+    }
+
     @GET
     @Path("{id}")
     public Response get(@PathParam("id") long id) {
+        mustBeLoggedIn();
+
         T entity = getEntityWithId(id);
         if (entity == null) {
             throw new RequestProcessingException(Response.Status.NOT_FOUND,
@@ -121,6 +136,8 @@ public abstract class EntityResource<T extends BaseEntity> {
 
     @GET
     public Response getList() {
+        mustBeLoggedIn();
+
         int count = getCount();
         int start = getStart();
 
@@ -290,6 +307,8 @@ public abstract class EntityResource<T extends BaseEntity> {
     @POST
     @Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
     public Response post(T entity) {
+        mustBeLoggedIn();
+
         notNull(entity, getEntityName());
         if (entity.getId() != null) {
             throw new RequestProcessingException(Response.Status.BAD_REQUEST,
@@ -315,10 +334,56 @@ public abstract class EntityResource<T extends BaseEntity> {
             throw new RequestProcessingException(
                 Response.Status.CONFLICT,
                 String.format(FAILED_TO_CREATE, getEntityName()),
-                e.getMessage()
+                translateMessage(e)
             );
         }
         return Response.ok(entity).build();
+    }
+
+    private String translateMessage(Exception e) {
+        if (e == null) {
+            return null;
+        }
+        String msg = e.getMessage();
+        if (e instanceof PersistenceException) {
+            PersistenceException pe = (PersistenceException) e;
+            if (e.getCause() instanceof ConstraintViolationException) {
+                e = (Exception) pe.getCause();
+            }
+        }
+        if (e instanceof ConstraintViolationException) {
+            ConstraintViolationException cve = (ConstraintViolationException) e;
+            SQLException se = cve.getSQLException();
+            StringBuilder sb = new StringBuilder();
+
+            while (se != null) {
+                if (sb.length() > 0) {
+                    sb.append(", ");
+                }
+                sb.append(se.getMessage());
+                se = se.getNextException();
+            }
+
+            msg = sb.toString();
+        }
+        if (e instanceof javax.validation.ConstraintViolationException) {
+            StringBuilder sb = new StringBuilder();
+
+            javax.validation.ConstraintViolationException cve = (javax.validation.ConstraintViolationException) e;
+            if (cve.getConstraintViolations() != null) {
+                for (ConstraintViolation cv : cve.getConstraintViolations()) {
+                    if (sb.length() > 0) {
+                        sb.append(", ");
+                    }
+                    String prop = cv.getPropertyPath() != null ? cv.getPropertyPath().toString() : getEntityName();
+                    String error = cv.getMessage() != null ? cv.getMessage() : "unknown error";
+                    sb.append(String.format("Invalid %s: %s", prop, error));
+                }
+            }
+
+            msg = sb.toString();
+        }
+        return msg;
     }
 
     // helper method to create a list so it's never null
@@ -336,6 +401,8 @@ public abstract class EntityResource<T extends BaseEntity> {
     @Path("{id}")
     @Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
     public Response put(@PathParam("id") long id, T entity) {
+        mustBeLoggedIn();
+
         notNull(entity, getEntityName());
         T entityToEdit = getEntityWithId(id);
         // check the entity with this ID truly exists and is visible to the user
@@ -378,7 +445,7 @@ public abstract class EntityResource<T extends BaseEntity> {
             throw new RequestProcessingException(
                 Response.Status.INTERNAL_SERVER_ERROR,
                 String.format(FAILED_TO_SAVE, getEntityName(), id),
-                e.getMessage()
+                translateMessage(e)
             );
         }
         return get(id);
@@ -387,6 +454,8 @@ public abstract class EntityResource<T extends BaseEntity> {
     @PUT
     @Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
     public Response putAll(List<T> entities) {
+        mustBeLoggedIn();
+
         List<T> savedEntities = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         try {
@@ -412,7 +481,7 @@ public abstract class EntityResource<T extends BaseEntity> {
             rollback();
             LOG.log(Level.SEVERE, "Failed to save collection edits", e);
             errors.add(FAILED_TO_COMMIT_COLLECTION_CHANGES);
-            errors.add(e.getMessage());
+            errors.add(translateMessage(e));
         }
         if (errors.size() > 0) {
             throw new RequestProcessingException(errors);
@@ -423,6 +492,8 @@ public abstract class EntityResource<T extends BaseEntity> {
     @DELETE
     @Path("{id}")
     public Response delete(@PathParam("id") long id) {
+        mustBeLoggedIn();
+
         T entityToDelete = getEntityWithId(id);
         if (entityToDelete == null) {
             throw new RequestProcessingException(Response.Status.NOT_FOUND,
@@ -489,6 +560,8 @@ public abstract class EntityResource<T extends BaseEntity> {
     ////////////////////////////TRANSACTION HELPERS////////////////////////////////////////////////////
 
     public abstract Class<T> getEntityClass();
+
+    public abstract boolean requiresLogin();
 
     public abstract boolean canCreate(T entity);
 

@@ -14,7 +14,7 @@ import java.util.Date;
 public class BaseEntity {
     @Id
     @Column(name = "id", updatable = false, nullable = false)
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Version
@@ -72,7 +72,9 @@ public class BaseEntity {
 
     @Override
     public int hashCode() {
-        return Long.hashCode(id) * 31 + Long.hashCode(this.getVersion());
+        long id = getId() != null ? getId() : 0;
+        long version = getVersion() != null ? getVersion() : 0;
+        return Long.hashCode(id) * 31 + Long.hashCode(version);
     }
 
     @PrePersist
