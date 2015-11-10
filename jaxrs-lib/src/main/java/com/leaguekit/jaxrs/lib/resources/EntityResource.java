@@ -325,7 +325,7 @@ public abstract class EntityResource<T extends BaseEntity> {
         }
         try {
             openTransaction();
-            entity = getEntityManager().merge(entity);
+            getEntityManager().persist(entity);
             commit();
             afterCreate(entity);
         } catch (Exception e) {
