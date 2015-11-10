@@ -310,7 +310,7 @@ public abstract class EntityResource<T extends BaseEntity> {
         mustBeLoggedIn();
 
         notNull(entity, getEntityName());
-        if (entity.getId() != null) {
+        if (entity.getId() != 0) {
             throw new RequestProcessingException(Response.Status.BAD_REQUEST,
                 ID_SHOULD_NOT_BE_INCLUDED_IN_A_POST);
         }
@@ -462,7 +462,7 @@ public abstract class EntityResource<T extends BaseEntity> {
             openTransaction();
             for (T entity : entities) {
                 try {
-                    if (entity.getId() != null) {
+                    if (entity.getId() != 0) {
                         savedEntities.add((T) put(entity.getId(), entity).getEntity());
                     } else {
                         savedEntities.add((T) post(entity).getEntity());
