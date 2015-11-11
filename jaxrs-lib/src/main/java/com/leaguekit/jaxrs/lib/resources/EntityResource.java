@@ -70,11 +70,7 @@ public abstract class EntityResource<T extends BaseEntity> {
     public static final String NOT_AUTHORIZED_TO_CREATE = "Not authorized to create %1$s.";
     public static final String NOT_AUTHORIZED_TO_EDIT = "Not authorized to edit %1$s with ID %2$s";
     public static final String ID_SHOULD_NOT_BE_INCLUDED_IN_A_POST = "ID should not be included in a post.";
-    public static final String FAILED_TO_CREATE = "Failed to create %1$s.";
-    public static final String FAILED_TO_SAVE = "Failed to save %1$s with ID %2$s.";
     private static final String NOT_AUTHORIZED_TO_DELETE = "Not authorized to delete %1$s with ID %2$s.";
-    public static final String FAILED_TO_DELETE = "Failed to delete %1$s with ID %2$s.";
-    public static final String FAILED_TO_COMMIT_COLLECTION_CHANGES = "Failed to commit collection changes";
     public static final String VERSION_CONFLICT_ERROR = "%1$s with ID %2$s has since been edited.";
 
     ////////////////////////////////////GET/////////////////////////////////////////
@@ -333,7 +329,6 @@ public abstract class EntityResource<T extends BaseEntity> {
             LOG.log(Level.SEVERE, "Failed to create entity", e);
             throw new RequestProcessingException(
                 Response.Status.CONFLICT,
-                String.format(FAILED_TO_CREATE, getEntityName()),
                 translateExceptionToMessage(e)
             );
         }
@@ -444,7 +439,6 @@ public abstract class EntityResource<T extends BaseEntity> {
             rollback();
             throw new RequestProcessingException(
                 Response.Status.INTERNAL_SERVER_ERROR,
-                String.format(FAILED_TO_SAVE, getEntityName(), id),
                 translateExceptionToMessage(e)
             );
         }
@@ -480,7 +474,6 @@ public abstract class EntityResource<T extends BaseEntity> {
         } catch (Exception e) {
             rollback();
             LOG.log(Level.SEVERE, "Failed to save collection edits", e);
-            errors.add(FAILED_TO_COMMIT_COLLECTION_CHANGES);
             errors.add(translateExceptionToMessage(e));
         }
         if (errors.size() > 0) {
@@ -514,7 +507,6 @@ public abstract class EntityResource<T extends BaseEntity> {
             LOG.log(Level.SEVERE, "Failed to delete resource", e);
             throw new RequestProcessingException(
                 Response.Status.CONFLICT,
-                String.format(FAILED_TO_DELETE, getEntityName(), entityToDelete.getId()),
                 translateExceptionToMessage(e)
             );
         }
