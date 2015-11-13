@@ -243,7 +243,6 @@ public abstract class EntityResource<T extends BaseEntity> {
      * Multiple sort orders can be specified, and you can sort by nested values, e.g. sort=A|id&sort=D|domain.name
      *
      * @param from root of the query
-     * @return list of orders to apply to the criteria in proper order
      */
     protected void getOrderFromRequest(Root<T> from, List<Order> orders) {
         List<String> sorts = getQueryParameters(Pattern.quote(getSortQueryParameterName()));
@@ -319,13 +318,20 @@ public abstract class EntityResource<T extends BaseEntity> {
         if (errors.size() > 0) {
             throw new RequestProcessingException(Response.Status.BAD_REQUEST, errors);
         }
+        boolean needsTx = noTx();
         try {
-            openTransaction();
+            if (needsTx) {
+                openTransaction();
+            }
             getEntityManager().persist(entity);
-            commit();
+            if (needsTx) {
+                commit();
+            }
             afterCreate(entity);
         } catch (Exception e) {
-            rollback();
+            if (needsTx) {
+                rollback();
+            }
             LOG.log(Level.SEVERE, "Failed to create entity", e);
             throw new RequestProcessingException(
                 Response.Status.CONFLICT,
@@ -490,7 +496,7 @@ public abstract class EntityResource<T extends BaseEntity> {
         T entityToDelete = getEntityWithId(id);
         if (entityToDelete == null) {
             throw new RequestProcessingException(Response.Status.NOT_FOUND,
-                String.format(NOT_FOUND, getEntityName()));
+                String.format(NOT_FOUND, getEntityName(), id));
         }
         if (!canDelete(entityToDelete)) {
             throw new RequestProcessingException(
