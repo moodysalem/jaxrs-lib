@@ -15,10 +15,7 @@ import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -52,6 +49,9 @@ public abstract class EntityResource<T extends BaseEntity> {
     public abstract int getMaxPerPage();
 
     public abstract int getDefaultRecordsPerPage();
+
+    // the number of records that can be deleted in a single request
+    protected abstract int getMaxBatchDeleteSize();
 
     // name of the header that should indicate the first record returned
     public abstract String getFirstRecordHeader();
@@ -451,6 +451,7 @@ public abstract class EntityResource<T extends BaseEntity> {
         return get(id);
     }
 
+    @SuppressWarnings("unchecked")
     @PUT
     @Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
     public Response putAll(List<T> entities) {
@@ -469,7 +470,7 @@ public abstract class EntityResource<T extends BaseEntity> {
                     }
                 } catch (Exception e) {
                     LOG.log(Level.SEVERE, "Failed to save entity in collection", e);
-                    errors.add(e.getMessage());
+                    errors.add(translateExceptionToMessage(e));
                 }
             }
             if (errors.size() == 0) {
@@ -490,24 +491,69 @@ public abstract class EntityResource<T extends BaseEntity> {
 
     @DELETE
     @Path("{id}")
-    public Response delete(@PathParam("id") long id) {
+    public Response delete(@PathParam("id") String csIds) {
         mustBeLoggedIn();
 
-        T entityToDelete = getEntityWithId(id);
-        if (entityToDelete == null) {
-            throw new RequestProcessingException(Response.Status.NOT_FOUND,
-                String.format(NOT_FOUND, getEntityName(), id));
+        String[] ids = csIds.split(Pattern.quote(","));
+        Set<Long> idSet = new HashSet<>();
+        for (String i : ids) {
+            try {
+                idSet.add(Long.parseLong(i));
+            } catch (NumberFormatException e) {
+                throw new RequestProcessingException(Response.Status.BAD_REQUEST, String.format("Invalid ID passed to delete: %s.", i));
+            }
         }
-        if (!canDelete(entityToDelete)) {
+
+        // verify they're not deleting too many
+        if (idSet.size() > getMaxBatchDeleteSize()) {
             throw new RequestProcessingException(
-                Response.Status.FORBIDDEN,
-                String.format(NOT_AUTHORIZED_TO_DELETE, getEntityName(), entityToDelete.getId())
+                Response.Status.BAD_REQUEST,
+                String.format("Number of IDs exceeds the maximum delete batch size of %d", getMaxBatchDeleteSize())
             );
         }
+
+        List<String> errors = new ArrayList<>();
+
+        Set<T> entitiesToDelete = new HashSet<>();
+        for (Long i : idSet) {
+            T entity = getEntityWithId(i);
+            if (entity == null) {
+                errors.add(String.format(NOT_FOUND, getEntityName(), i));
+            } else {
+                entitiesToDelete.add(entity);
+            }
+        }
+
+        if (errors.size() > 0) {
+            throw new RequestProcessingException(Response.Status.NOT_FOUND, errors);
+        }
+
+        for (T ent : entitiesToDelete) {
+            if (!canDelete(ent)) {
+                errors.add(String.format(NOT_AUTHORIZED_TO_DELETE, getEntityName(), ent.getId()));
+            }
+        }
+
+        if (errors.size() > 0) {
+            throw new RequestProcessingException(Response.Status.FORBIDDEN, errors);
+        }
+
         try {
             openTransaction();
-            deleteEntity(entityToDelete);
-            commit();
+            for (T entity : entitiesToDelete) {
+                try {
+                    deleteEntity(entity);
+                } catch (Exception e) {
+                    errors.add(translateExceptionToMessage(e));
+                }
+            }
+            // no errors encountered, do commit
+            if (errors.size() == 0) {
+                commit();
+            } else {
+                //otherwise rollback
+                rollback();
+            }
         } catch (Exception e) {
             rollback();
             LOG.log(Level.SEVERE, "Failed to delete resource", e);
@@ -516,6 +562,11 @@ public abstract class EntityResource<T extends BaseEntity> {
                 translateExceptionToMessage(e)
             );
         }
+
+        if (errors.size() > 0) {
+            throw new RequestProcessingException(Response.Status.CONFLICT, errors);
+        }
+
         return Response.status(Response.Status.NO_CONTENT).build();
     }
 

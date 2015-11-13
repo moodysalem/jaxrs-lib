@@ -20,8 +20,10 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.testng.AssertJUnit.assertTrue;
 
@@ -107,6 +109,11 @@ public class EntityResourceTest extends BaseTest {
         @Override
         public int getDefaultRecordsPerPage() {
             return 20;
+        }
+
+        @Override
+        protected int getMaxBatchDeleteSize() {
+            return 100;
         }
 
         @Override
@@ -278,9 +285,17 @@ public class EntityResourceTest extends BaseTest {
         assertTrue(r.getHeaderString(X_START).equals("20"));
         assertTrue(r.getHeaderString(X_COUNT).equals("40"));
 
-        assertTrue(wt.queryParam(COUNT, 1000).queryParam(START, 20)
-            .request().get().getHeaderString(X_COUNT).equals("500"));
 
+        Response list = wt.queryParam(COUNT, 1000).queryParam(START, 20)
+            .request().get();
+        assertTrue(list.getHeaderString(X_COUNT).equals("500"));
+
+        List<MyEntity> lme = list.readEntity(new GenericType<List<MyEntity>>() {
+        });
+        String ids = lme.stream().limit(100).map(MyEntity::getId).map((id) -> Long.toString(id)).collect(Collectors.joining(","));
+
+        Response del = wt.path(ids).request().delete();
+        assertTrue(del.getStatus() == 204);
 
     }
 
