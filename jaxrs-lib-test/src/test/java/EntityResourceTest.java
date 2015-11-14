@@ -1,8 +1,8 @@
-import com.leaguekit.hibernate.model.BaseEntity;
-import com.leaguekit.jaxrs.lib.BaseApplication;
-import com.leaguekit.jaxrs.lib.factories.JAXRSEntityManagerFactory;
-import com.leaguekit.jaxrs.lib.resources.EntityResource;
-import com.leaguekit.jaxrs.lib.test.BaseTest;
+import com.moodysalem.jaxrs.lib.BaseApplication;
+import com.moodysalem.jaxrs.lib.factories.JAXRSEntityManagerFactory;
+import com.moodysalem.jaxrs.lib.test.BaseTest;
+import com.moodysalem.hibernate.model.BaseEntity;
+import com.moodysalem.jaxrs.lib.resources.EntityResource;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.glassfish.jersey.process.internal.RequestScoped;
 import org.glassfish.jersey.server.ResourceConfig;

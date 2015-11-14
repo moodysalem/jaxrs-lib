@@ -1,4 +1,4 @@
-package com.leaguekit.jaxrs.lib.factories;
+package com.moodysalem.jaxrs.lib.factories;
 
 import org.glassfish.hk2.api.Factory;
 

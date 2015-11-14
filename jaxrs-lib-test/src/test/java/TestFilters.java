@@ -1,8 +1,8 @@
-import com.leaguekit.jaxrs.lib.BaseApplication;
-import com.leaguekit.jaxrs.lib.filters.CORSFilter;
-import com.leaguekit.jaxrs.lib.filters.HTTPSFilter;
-import com.leaguekit.jaxrs.lib.test.BaseTest;
-import com.leaguekit.util.RandomStringUtil;
+import com.moodysalem.jaxrs.lib.BaseApplication;
+import com.moodysalem.jaxrs.lib.filters.CORSFilter;
+import com.moodysalem.jaxrs.lib.filters.HTTPSFilter;
+import com.moodysalem.jaxrs.lib.test.BaseTest;
+import com.moodysalem.util.RandomStringUtil;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.testng.annotations.Test;
 
@@ -44,9 +44,9 @@ public class TestFilters extends BaseTest {
         @GET
         public Response cors() {
             return Response.ok()
-                    .header(X_CUSTOM_HEADER, RandomStringUtil.randomAlphaNumeric(64))
-                    .header(X_ANOTHER_HEADER, RandomStringUtil.randomAlphaNumeric(32))
-                    .build();
+                .header(X_CUSTOM_HEADER, RandomStringUtil.randomAlphaNumeric(64))
+                .header(X_ANOTHER_HEADER, RandomStringUtil.randomAlphaNumeric(32))
+                .build();
         }
     }
 

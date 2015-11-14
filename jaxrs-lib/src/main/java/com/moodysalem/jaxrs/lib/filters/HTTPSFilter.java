@@ -1,4 +1,4 @@
-package com.leaguekit.jaxrs.lib.filters;
+package com.moodysalem.jaxrs.lib.filters;
 
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;

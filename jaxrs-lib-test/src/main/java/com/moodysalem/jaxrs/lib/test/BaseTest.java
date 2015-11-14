@@ -1,6 +1,6 @@
-package com.leaguekit.jaxrs.lib.test;
+package com.moodysalem.jaxrs.lib.test;
 
-import com.leaguekit.jaxrs.lib.contextresolvers.ObjectMapperContextResolver;
+import com.moodysalem.jaxrs.lib.contextresolvers.ObjectMapperContextResolver;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.message.GZipEncoder;

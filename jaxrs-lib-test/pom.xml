@@ -14,9 +14,8 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.leaguekit</groupId>
+      <groupId>com.moodysalem.java</groupId>
       <artifactId>jaxrs-lib</artifactId>
-      <version>${project.version}</version>
     </dependency>
 
     <dependency>

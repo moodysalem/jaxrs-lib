@@ -1,4 +1,4 @@
-package com.leaguekit.jaxrs.lib.contextresolvers;
+package com.moodysalem.jaxrs.lib.contextresolvers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;

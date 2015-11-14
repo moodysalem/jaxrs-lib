@@ -1,11 +1,11 @@
-package com.leaguekit.jaxrs.lib;
+package com.moodysalem.jaxrs.lib;
 
-import com.leaguekit.jaxrs.lib.contextresolvers.ObjectMapperContextResolver;
-import com.leaguekit.jaxrs.lib.converters.LocalDateParamConverterProvider;
-import com.leaguekit.jaxrs.lib.filters.CORSFilter;
-import com.leaguekit.jaxrs.lib.filters.HTTPSFilter;
-import com.leaguekit.jaxrs.lib.providers.RequestProcessingExceptionMapper;
-import com.leaguekit.jaxrs.lib.providers.WebApplicationExceptionMapper;
+import com.moodysalem.jaxrs.lib.contextresolvers.ObjectMapperContextResolver;
+import com.moodysalem.jaxrs.lib.converters.LocalDateParamConverterProvider;
+import com.moodysalem.jaxrs.lib.filters.CORSFilter;
+import com.moodysalem.jaxrs.lib.filters.HTTPSFilter;
+import com.moodysalem.jaxrs.lib.providers.RequestProcessingExceptionMapper;
+import com.moodysalem.jaxrs.lib.providers.WebApplicationExceptionMapper;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.message.GZipEncoder;
 import org.glassfish.jersey.server.ResourceConfig;

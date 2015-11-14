@@ -1,9 +1,9 @@
-package com.leaguekit.jaxrs.lib.providers;
+package com.moodysalem.jaxrs.lib.providers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.leaguekit.jaxrs.lib.exceptions.RequestProcessingException;
+import com.moodysalem.jaxrs.lib.exceptions.RequestProcessingException;
 
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;

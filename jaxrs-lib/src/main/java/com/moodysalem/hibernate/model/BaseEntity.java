@@ -1,4 +1,4 @@
-package com.leaguekit.hibernate.model;
+package com.moodysalem.hibernate.model;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;

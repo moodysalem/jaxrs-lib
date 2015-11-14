@@ -1,4 +1,4 @@
-package com.leaguekit.jaxrs.lib.exceptions;
+package com.moodysalem.jaxrs.lib.exceptions;
 
 import javax.ws.rs.core.Response;
 import java.util.ArrayList;

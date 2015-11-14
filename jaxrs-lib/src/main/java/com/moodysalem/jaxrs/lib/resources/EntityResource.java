@@ -1,7 +1,7 @@
-package com.leaguekit.jaxrs.lib.resources;
+package com.moodysalem.jaxrs.lib.resources;
 
-import com.leaguekit.hibernate.model.BaseEntity;
-import com.leaguekit.jaxrs.lib.exceptions.RequestProcessingException;
+import com.moodysalem.hibernate.model.BaseEntity;
+import com.moodysalem.jaxrs.lib.exceptions.RequestProcessingException;
 import org.hibernate.exception.ConstraintViolationException;
 
 import javax.persistence.EntityManager;

@@ -1,4 +1,4 @@
-package com.leaguekit.util;
+package com.moodysalem.util;
 
 import java.security.SecureRandom;
 

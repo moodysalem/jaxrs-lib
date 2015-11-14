@@ -1,4 +1,4 @@
-package com.leaguekit.jaxrs.lib.converters;
+package com.moodysalem.jaxrs.lib.converters;
 
 import javax.ws.rs.ext.ParamConverter;
 import javax.ws.rs.ext.ParamConverterProvider;

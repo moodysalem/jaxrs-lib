@@ -56,6 +56,13 @@
 
   <dependencyManagement>
     <dependencies>
+      <!--interproject deps-->
+      <dependency>
+        <groupId>com.moodysalem.java</groupId>
+        <artifactId>jaxrs-lib</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
       <!-- jackson serialization of object graph support -->
       <dependency>
         <groupId>com.voodoodyne.jackson.jsog</groupId>

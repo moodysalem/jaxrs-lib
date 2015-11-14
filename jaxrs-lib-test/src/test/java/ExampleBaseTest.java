@@ -1,5 +1,5 @@
-import com.leaguekit.jaxrs.lib.BaseApplication;
-import com.leaguekit.jaxrs.lib.test.BaseTest;
+import com.moodysalem.jaxrs.lib.BaseApplication;
+import com.moodysalem.jaxrs.lib.test.BaseTest;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import javax.ws.rs.*;
