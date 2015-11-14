@@ -240,7 +240,6 @@ public abstract class EntityResource<T extends BaseEntity> {
 
     /**
      * Resolves sorting orders from the request by matching them to attribute on the model
-     * Multiple sort orders can be specified, and you can sort by nested values, e.g. sort=A|id&sort=D|domain.name
      *
      * @param from root of the query
      */
