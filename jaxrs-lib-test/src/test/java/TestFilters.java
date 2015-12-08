@@ -14,6 +14,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -46,9 +47,7 @@ public class TestFilters extends BaseTest {
         String[] pcs = exposedHeaders.split(",");
         assertTrue(pcs.length == 2);
         Set<String> eh = new HashSet<>();
-        for (String s : pcs) {
-            eh.add(s);
-        }
+        Collections.addAll(eh, pcs);
         assertTrue(eh.contains(X_CUSTOM_HEADER));
         assertTrue(eh.contains(X_ANOTHER_HEADER));
 
