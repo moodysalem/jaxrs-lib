@@ -8,9 +8,14 @@ import org.testng.annotations.Test;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.container.ContainerRequestContext;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.testng.AssertJUnit.assertTrue;
 
@@ -30,19 +35,58 @@ public class TestFilters extends BaseTest {
         assertTrue(loc.getQuery() == null || loc.getQuery().equals(""));
     }
 
+    // test normal operation of CORS filter
     @Test
     public void testCORSFilter() {
-        System.setProperty("sun.net.http.allowRestrictedHeaders", "true");
         Response r = target("cors").request().header(CORSFilter.ORIGIN_HEADER, "http://fakeurl.com").get();
-//        assertTrue("*".equals(r.getHeaderString(CORSFilter.ACCESS_CONTROL_ALLOW_ORIGIN)));
+
+        // check the exposed headers are all the custom headers returned
+        String exposedHeaders = r.getHeaderString(CORSFilter.ACCESS_CONTROL_EXPOSE_HEADERS);
+        assertTrue(exposedHeaders != null);
+        String[] pcs = exposedHeaders.split(",");
+        assertTrue(pcs.length == 2);
+        Set<String> eh = new HashSet<>();
+        for (String s : pcs) {
+            eh.add(s);
+        }
+        assertTrue(eh.contains(X_CUSTOM_HEADER));
+        assertTrue(eh.contains(X_ANOTHER_HEADER));
+
+
+        assertTrue("true".equals(r.getHeaderString(CORSFilter.ACCESS_CONTROL_ALLOW_CREDENTIALS)));
+        assertTrue("*".equals(r.getHeaderString(CORSFilter.ACCESS_CONTROL_ALLOW_ORIGIN)));
+        assertTrue("2592000".equals(r.getHeaderString(CORSFilter.ACCESS_CONTROL_MAX_AGE)));
         assertTrue(r.getHeaderString(X_CUSTOM_HEADER).length() == 64);
         assertTrue(r.getHeaderString(X_ANOTHER_HEADER).length() == 32);
     }
 
+    // test that the filter can be skipped by setting a request property
+    @Test
+    public void testTargetedCORSFilterSkip() {
+        Response r = target("cors").queryParam("nocors", true).request().header(CORSFilter.ORIGIN_HEADER, "http://fakeurl.com").get();
+
+        // none of that should be available
+        assertTrue(null == r.getHeaderString(CORSFilter.ACCESS_CONTROL_ALLOW_ORIGIN));
+        assertTrue(null == r.getHeaderString(CORSFilter.ACCESS_CONTROL_ALLOW_CREDENTIALS));
+        assertTrue(null == r.getHeaderString(CORSFilter.ACCESS_CONTROL_ALLOW_ORIGIN));
+        assertTrue(null == r.getHeaderString(CORSFilter.ACCESS_CONTROL_MAX_AGE));
+        assertTrue(null == r.getHeaderString(CORSFilter.ACCESS_CONTROL_EXPOSE_HEADERS));
+    }
+
     @Path("cors")
     public static class CORSResource {
+        @Context
+        ContainerRequestContext containerRequestContext;
+
+        @QueryParam("nocors")
+        Boolean nocors;
+
         @GET
         public Response cors() {
+            if (Boolean.TRUE.equals(nocors)) {
+                containerRequestContext.setProperty(CORSFilter.SKIP_CORS_FILTER_REQUEST_PROPERTY, true);
+            }
+
             return Response.ok()
                 .header(X_CUSTOM_HEADER, RandomStringUtil.randomAlphaNumeric(64))
                 .header(X_ANOTHER_HEADER, RandomStringUtil.randomAlphaNumeric(32))

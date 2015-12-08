@@ -42,6 +42,7 @@ public abstract class BaseTest extends JerseyTestNg.ContainerPerClassTest {
 
     @Override
     protected void configureClient(ClientConfig config) {
+        System.setProperty("sun.net.http.allowRestrictedHeaders", "true");
         config.register(JacksonFeature.class).register(ObjectMapperContextResolver.class);
     }
 

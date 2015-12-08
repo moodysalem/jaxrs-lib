@@ -8,7 +8,6 @@ import javax.ws.rs.container.ContainerResponseFilter;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.ext.Provider;
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -30,9 +29,16 @@ public class CORSFilter implements ContainerResponseFilter {
     public static final String ALL_METHODS = "GET,POST,DELETE,PUT,OPTIONS";
     public static final String ORIGIN_HEADER = "Origin";
 
+    public static final String SKIP_CORS_FILTER_REQUEST_PROPERTY = CORSFilter.class.getName().concat(".SKIP");
+
     @Override
     public void filter(ContainerRequestContext containerRequestContext, ContainerResponseContext containerResponseContext)
         throws IOException {
+        // don't do anything it this property is set on the request
+        if (Boolean.TRUE.equals(containerRequestContext.getProperty(SKIP_CORS_FILTER_REQUEST_PROPERTY))) {
+            return;
+        }
+
         MultivaluedMap<String, Object> headers = containerResponseContext.getHeaders();
 
         // only if origin header is present do we slap on these origin headers

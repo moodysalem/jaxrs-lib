@@ -13,8 +13,14 @@ public class HTTPSFilter implements ContainerRequestFilter {
     public static final String PROTO_HEADER = "X-Forwarded-Proto";
     public static final String HTTPS = "https";
 
+    public static final String SKIP_HTTPS_FILTER_REQUEST_PROPERTY = HTTPSFilter.class.getName().concat(".SKIP");
+
     @Override
     public void filter(ContainerRequestContext containerRequestContext) throws IOException {
+        if (Boolean.TRUE.equals(containerRequestContext.getProperty(SKIP_HTTPS_FILTER_REQUEST_PROPERTY))) {
+            return;
+        }
+
         String proto = containerRequestContext.getHeaderString(PROTO_HEADER);
 
         if (proto != null && !proto.equalsIgnoreCase(HTTPS)) {
