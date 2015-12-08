@@ -80,7 +80,7 @@ public class BaseEntity {
      * @param other entity to check ID
      * @return true if the IDs match
      */
-    private boolean idMatch(BaseEntity other) {
+    public boolean idMatch(BaseEntity other) {
         return other != null && other.getId() == getId();
     }
 }
