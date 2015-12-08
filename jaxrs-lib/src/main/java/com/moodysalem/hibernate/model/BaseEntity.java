@@ -73,4 +73,14 @@ public class BaseEntity {
     protected void onUpdate() {
         updated = new Date();
     }
+
+    /**
+     * Shorthand for comparing IDs
+     *
+     * @param other entity to check ID
+     * @return true if the IDs match
+     */
+    private boolean idMatch(BaseEntity other) {
+        return other != null && other.getId() == getId();
+    }
 }
