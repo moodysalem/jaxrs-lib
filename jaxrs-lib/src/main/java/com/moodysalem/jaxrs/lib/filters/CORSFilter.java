@@ -2,21 +2,21 @@ package com.moodysalem.jaxrs.lib.filters;
 
 import javax.annotation.Priority;
 import javax.ws.rs.Priorities;
-import javax.ws.rs.container.ContainerRequestContext;
-import javax.ws.rs.container.ContainerResponseContext;
-import javax.ws.rs.container.ContainerResponseFilter;
+import javax.ws.rs.container.*;
+import javax.ws.rs.core.FeatureContext;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.ext.Provider;
 import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * Adds CORS headers to allow any origin
- */
-@Provider
-@Priority(Priorities.HEADER_DECORATOR)
-public class CORSFilter implements ContainerResponseFilter {
+public class CORSFilter implements DynamicFeature {
 
     public static final int ACCESS_CONTROL_CACHE_SECONDS = 2592000;
     public static final String ACCESS_CONTROL_EXPOSE_HEADERS = "Access-Control-Expose-Headers";
@@ -29,41 +29,72 @@ public class CORSFilter implements ContainerResponseFilter {
     public static final String ALL_METHODS = "GET,POST,DELETE,PUT,OPTIONS";
     public static final String ORIGIN_HEADER = "Origin";
 
-    public static final String SKIP_CORS_FILTER_REQUEST_PROPERTY = CORSFilter.class.getName().concat(".SKIP");
 
     @Override
-    public void filter(ContainerRequestContext containerRequestContext, ContainerResponseContext containerResponseContext)
-        throws IOException {
-        // don't do anything it this property is set on the request
-        if (Boolean.TRUE.equals(containerRequestContext.getProperty(SKIP_CORS_FILTER_REQUEST_PROPERTY))) {
-            return;
+    public void configure(ResourceInfo resourceInfo, FeatureContext context) {
+        List<Annotation> annotationList = new ArrayList<>();
+
+        Collections.addAll(annotationList, resourceInfo.getResourceMethod().getAnnotations());
+        Collections.addAll(annotationList, resourceInfo.getResourceClass().getAnnotations());
+
+        boolean bindFeature = true;
+        if (annotationList.size() > 0) {
+            for (Annotation a : annotationList) {
+                if (a instanceof Skip) {
+                    bindFeature = false;
+                    break;
+                }
+            }
         }
 
-        MultivaluedMap<String, Object> headers = containerResponseContext.getHeaders();
+        if (bindFeature) {
+            context.register(Filter.class);
+        }
+    }
 
-        // only if origin header is present do we slap on these origin headers
-        if (containerRequestContext.getHeaderString(ORIGIN_HEADER) != null) {
-            // these are always ok
-            headers.putSingle(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
-            headers.putSingle(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-            headers.putSingle(ACCESS_CONTROL_ALLOW_METHODS, ALL_METHODS);
+    // @Compress annotation is the name binding annotation
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface Skip {
+    }
 
-            // allow all the request headers
-            String requestHeadersAllowed = containerRequestContext.getHeaderString(ACCESS_CONTROL_REQUEST_HEADERS);
-            if (requestHeadersAllowed != null) {
-                headers.putSingle(ACCESS_CONTROL_ALLOW_HEADERS, requestHeadersAllowed);
+    /**
+     * Adds CORS headers to allow any origin
+     */
+    @Provider
+    @Priority(Priorities.HEADER_DECORATOR)
+    public static class Filter implements ContainerResponseFilter {
+
+        @Override
+        public void filter(ContainerRequestContext req, ContainerResponseContext resp)
+            throws IOException {
+            MultivaluedMap<String, Object> headers = resp.getHeaders();
+
+            // only if origin header is present do we slap on these origin headers
+            if (req.getHeaderString(ORIGIN_HEADER) != null) {
+                // these are always ok
+                headers.putSingle(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+                headers.putSingle(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+                headers.putSingle(ACCESS_CONTROL_ALLOW_METHODS, ALL_METHODS);
+
+                // allow all the request headers
+                String requestHeadersAllowed = req.getHeaderString(ACCESS_CONTROL_REQUEST_HEADERS);
+                if (requestHeadersAllowed != null) {
+                    headers.putSingle(ACCESS_CONTROL_ALLOW_HEADERS, requestHeadersAllowed);
+                }
+
+                Set<String> customHeaders = resp.getHeaders().keySet().stream()
+                    .filter((s) -> s != null && s.toUpperCase().startsWith("X-")).collect(Collectors.toSet());
+                if (customHeaders.size() > 0) {
+                    headers.putSingle(ACCESS_CONTROL_EXPOSE_HEADERS, customHeaders.stream().collect(Collectors.joining(",")));
+                }
+
+                // allow browser to cache this forever
+                headers.putSingle(ACCESS_CONTROL_MAX_AGE, ACCESS_CONTROL_CACHE_SECONDS);
             }
 
-            Set<String> customHeaders = containerResponseContext.getHeaders().keySet().stream()
-                .filter((s) -> s != null && s.toUpperCase().startsWith("X-")).collect(Collectors.toSet());
-            if (customHeaders.size() > 0) {
-                headers.putSingle(ACCESS_CONTROL_EXPOSE_HEADERS, customHeaders.stream().collect(Collectors.joining(",")));
-            }
-
-            // allow browser to cache this forever
-            headers.putSingle(ACCESS_CONTROL_MAX_AGE, ACCESS_CONTROL_CACHE_SECONDS);
         }
 
     }
 
 }
+

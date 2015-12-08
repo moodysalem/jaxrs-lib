@@ -62,7 +62,7 @@ public class TestFilters extends BaseTest {
     // test that the filter can be skipped by setting a request property
     @Test
     public void testTargetedCORSFilterSkip() {
-        Response r = target("cors").queryParam("nocors", true).request().header(CORSFilter.ORIGIN_HEADER, "http://fakeurl.com").get();
+        Response r = target("cors").path("skip").request().header(CORSFilter.ORIGIN_HEADER, "http://fakeurl.com").get();
 
         // none of that should be available
         assertTrue(null == r.getHeaderString(CORSFilter.ACCESS_CONTROL_ALLOW_ORIGIN));
@@ -82,14 +82,18 @@ public class TestFilters extends BaseTest {
 
         @GET
         public Response cors() {
-            if (Boolean.TRUE.equals(nocors)) {
-                containerRequestContext.setProperty(CORSFilter.SKIP_CORS_FILTER_REQUEST_PROPERTY, true);
-            }
 
             return Response.ok()
                 .header(X_CUSTOM_HEADER, RandomStringUtil.randomAlphaNumeric(64))
                 .header(X_ANOTHER_HEADER, RandomStringUtil.randomAlphaNumeric(32))
                 .build();
+        }
+
+        @GET
+        @Path("skip")
+        @CORSFilter.Skip
+        public Response testSkip() {
+            return cors();
         }
     }
 
