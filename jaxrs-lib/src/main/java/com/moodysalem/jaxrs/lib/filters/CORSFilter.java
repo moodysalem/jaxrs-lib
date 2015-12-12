@@ -7,12 +7,8 @@ import javax.ws.rs.core.FeatureContext;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.ext.Provider;
 import java.io.IOException;
-import java.lang.annotation.Annotation;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -32,22 +28,8 @@ public class CORSFilter implements DynamicFeature {
 
     @Override
     public void configure(ResourceInfo resourceInfo, FeatureContext context) {
-        List<Annotation> annotationList = new ArrayList<>();
-
-        Collections.addAll(annotationList, resourceInfo.getResourceMethod().getAnnotations());
-        Collections.addAll(annotationList, resourceInfo.getResourceClass().getAnnotations());
-
-        boolean bindFeature = true;
-        if (annotationList.size() > 0) {
-            for (Annotation a : annotationList) {
-                if (a instanceof Skip) {
-                    bindFeature = false;
-                    break;
-                }
-            }
-        }
-
-        if (bindFeature) {
+        if (!resourceInfo.getResourceClass().isAnnotationPresent(Skip.class) &&
+                !resourceInfo.getResourceMethod().isAnnotationPresent(Skip.class)) {
             context.register(Filter.class);
         }
     }
@@ -66,7 +48,7 @@ public class CORSFilter implements DynamicFeature {
 
         @Override
         public void filter(ContainerRequestContext req, ContainerResponseContext resp)
-            throws IOException {
+                throws IOException {
             MultivaluedMap<String, Object> headers = resp.getHeaders();
 
             // only if origin header is present do we slap on these origin headers
@@ -83,7 +65,7 @@ public class CORSFilter implements DynamicFeature {
                 }
 
                 Set<String> customHeaders = resp.getHeaders().keySet().stream()
-                    .filter((s) -> s != null && s.toUpperCase().startsWith("X-")).collect(Collectors.toSet());
+                        .filter((s) -> s != null && s.toUpperCase().startsWith("X-")).collect(Collectors.toSet());
                 if (customHeaders.size() > 0) {
                     headers.putSingle(ACCESS_CONTROL_EXPOSE_HEADERS, customHeaders.stream().collect(Collectors.joining(",")));
                 }
