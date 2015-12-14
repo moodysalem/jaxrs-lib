@@ -4,6 +4,7 @@ import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.PreMatching;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 import javax.ws.rs.ext.Provider;
 import java.io.IOException;
 
@@ -16,13 +17,15 @@ public class HTTPSFilter implements ContainerRequestFilter {
     @Override
     public void filter(ContainerRequestContext containerRequestContext) throws IOException {
         String proto = containerRequestContext.getHeaderString(PROTO_HEADER);
+        UriInfo ui = containerRequestContext.getUriInfo();
 
-        if (proto != null && !proto.equalsIgnoreCase(HTTPS)) {
+        if ((proto != null && !HTTPS.equalsIgnoreCase(proto)) ||
+                (proto == null && !HTTPS.equalsIgnoreCase(ui.getRequestUri().getScheme()))) {
             // forward the client to the https version of the site
             containerRequestContext.abortWith(
                 Response.status(Response.Status.FOUND)
                     .header("Location",
-                        containerRequestContext.getUriInfo().getBaseUriBuilder()
+                        ui.getBaseUriBuilder()
                             .scheme(HTTPS)
                             // remove all the information they shouldn't have communicated over http
                             .replaceQuery("")
