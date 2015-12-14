@@ -234,8 +234,7 @@
                   <goal>sign</goal>
                 </goals>
                 <configuration>
-                  <keyname>Moody Salem</keyname>
-                  <useAgent>false</useAgent>
+                  <keyname>1EF06B39</keyname>
                 </configuration>
               </execution>
             </executions>
