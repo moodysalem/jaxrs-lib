@@ -17,15 +17,13 @@ public class HTTPSFilter implements ContainerRequestFilter {
     @Override
     public void filter(ContainerRequestContext containerRequestContext) throws IOException {
         String proto = containerRequestContext.getHeaderString(PROTO_HEADER);
-        UriInfo ui = containerRequestContext.getUriInfo();
 
-        if ((proto != null && !HTTPS.equalsIgnoreCase(proto)) ||
-                (proto == null && !HTTPS.equalsIgnoreCase(ui.getRequestUri().getScheme()))) {
+        if (proto != null && !HTTPS.equalsIgnoreCase(proto)) {
             // forward the client to the https version of the site
             containerRequestContext.abortWith(
                 Response.status(Response.Status.FOUND)
                     .header("Location",
-                        ui.getBaseUriBuilder()
+                        containerRequestContext.getUriInfo().getBaseUriBuilder()
                             .scheme(HTTPS)
                             // remove all the information they shouldn't have communicated over http
                             .replaceQuery("")

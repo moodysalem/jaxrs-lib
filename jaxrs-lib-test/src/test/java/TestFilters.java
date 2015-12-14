@@ -42,7 +42,6 @@ public class TestFilters extends BaseTest {
     public void testCORSFilter() {
         Response r = target("cors").request()
                 .header(CORSFilter.ORIGIN_HEADER, "http://fakeurl.com")
-                .header(HTTPSFilter.PROTO_HEADER, HTTPSFilter.HTTPS)
                 .get();
 
         // check the exposed headers are all the custom headers returned
