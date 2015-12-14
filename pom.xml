@@ -4,7 +4,7 @@
 
   <groupId>com.moodysalem.java</groupId>
   <artifactId>jaxrs-lib-parent</artifactId>
-  <version>1.0.5-SNAPSHOT</version>
+  <version>1.0.6-SNAPSHOT</version>
   <modules>
     <module>jaxrs-lib</module>
     <module>jaxrs-lib-test</module>
