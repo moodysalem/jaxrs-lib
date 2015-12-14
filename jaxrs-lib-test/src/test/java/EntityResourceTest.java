@@ -197,7 +197,7 @@ public class EntityResourceTest extends BaseTest {
         ResourceConfig rc = new BaseApplication() {
             @Override
             public boolean forceHttps() {
-                return true;
+                return false;
             }
 
             @Override

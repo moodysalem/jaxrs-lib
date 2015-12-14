@@ -27,7 +27,8 @@ public class TestFilters extends BaseTest {
 
     @Test
     public void testHttpsFilter() throws URISyntaxException {
-        Response r = target("some/path/string").queryParam("test", "ab").request().header(HTTPSFilter.PROTO_HEADER, "http").get();
+        Response r = target("some/path/string").queryParam("test", "ab").request()
+                .header(HTTPSFilter.PROTO_HEADER, "http").get();
         assertTrue(r.getStatus() == Response.Status.FOUND.getStatusCode());
         URI base = target().getUri();
         URI loc = new URI(r.getHeaderString("Location"));
@@ -39,7 +40,10 @@ public class TestFilters extends BaseTest {
     // test normal operation of CORS filter
     @Test
     public void testCORSFilter() {
-        Response r = target("cors").request().header(CORSFilter.ORIGIN_HEADER, "http://fakeurl.com").get();
+        Response r = target("cors").request()
+                .header(CORSFilter.ORIGIN_HEADER, "http://fakeurl.com")
+                .header(HTTPSFilter.PROTO_HEADER, HTTPSFilter.HTTPS)
+                .get();
 
         // check the exposed headers are all the custom headers returned
         String exposedHeaders = r.getHeaderString(CORSFilter.ACCESS_CONTROL_EXPOSE_HEADERS);
