@@ -29,7 +29,7 @@ public class CORSFilter implements DynamicFeature {
     @Override
     public void configure(ResourceInfo resourceInfo, FeatureContext context) {
         if (!resourceInfo.getResourceClass().isAnnotationPresent(Skip.class) &&
-                !resourceInfo.getResourceMethod().isAnnotationPresent(Skip.class)) {
+            !resourceInfo.getResourceMethod().isAnnotationPresent(Skip.class)) {
             context.register(Filter.class);
         }
     }
@@ -48,13 +48,14 @@ public class CORSFilter implements DynamicFeature {
 
         @Override
         public void filter(ContainerRequestContext req, ContainerResponseContext resp)
-                throws IOException {
+            throws IOException {
             MultivaluedMap<String, Object> headers = resp.getHeaders();
 
+            String origin = req.getHeaderString(ORIGIN_HEADER);
             // only if origin header is present do we slap on these origin headers
-            if (req.getHeaderString(ORIGIN_HEADER) != null) {
+            if (origin != null) {
                 // these are always ok
-                headers.putSingle(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+                headers.putSingle(ACCESS_CONTROL_ALLOW_ORIGIN, origin);
                 headers.putSingle(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
                 headers.putSingle(ACCESS_CONTROL_ALLOW_METHODS, ALL_METHODS);
 
@@ -65,7 +66,7 @@ public class CORSFilter implements DynamicFeature {
                 }
 
                 Set<String> customHeaders = resp.getHeaders().keySet().stream()
-                        .filter((s) -> s != null && s.toUpperCase().startsWith("X-")).collect(Collectors.toSet());
+                    .filter((s) -> s != null && s.toUpperCase().startsWith("X-")).collect(Collectors.toSet());
                 if (customHeaders.size() > 0) {
                     headers.putSingle(ACCESS_CONTROL_EXPOSE_HEADERS, customHeaders.stream().collect(Collectors.joining(",")));
                 }

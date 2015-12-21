@@ -40,8 +40,9 @@ public class TestFilters extends BaseTest {
     // test normal operation of CORS filter
     @Test
     public void testCORSFilter() {
+        String fakeOrigin = "http://fakeurl.com";
         Response r = target("cors").request()
-                .header(CORSFilter.ORIGIN_HEADER, "http://fakeurl.com")
+                .header(CORSFilter.ORIGIN_HEADER, fakeOrigin)
                 .get();
 
         // check the exposed headers are all the custom headers returned
@@ -56,7 +57,7 @@ public class TestFilters extends BaseTest {
 
 
         assertTrue("true".equals(r.getHeaderString(CORSFilter.ACCESS_CONTROL_ALLOW_CREDENTIALS)));
-        assertTrue("*".equals(r.getHeaderString(CORSFilter.ACCESS_CONTROL_ALLOW_ORIGIN)));
+        assertTrue(fakeOrigin.equals(r.getHeaderString(CORSFilter.ACCESS_CONTROL_ALLOW_ORIGIN)));
         assertTrue("2592000".equals(r.getHeaderString(CORSFilter.ACCESS_CONTROL_MAX_AGE)));
         assertTrue(r.getHeaderString(X_CUSTOM_HEADER).length() == 64);
         assertTrue(r.getHeaderString(X_ANOTHER_HEADER).length() == 32);
