@@ -7,12 +7,13 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Provider
-public class LocalDateParamConverterProvider implements ParamConverterProvider {
+public class JodaTimeParamConverterProvider implements ParamConverterProvider {
 
     @Override
     public <T> ParamConverter<T> getConverter(Class<T> rawType, Type genericType, Annotation[] annotations) {
@@ -20,6 +21,8 @@ public class LocalDateParamConverterProvider implements ParamConverterProvider {
             return (ParamConverter<T>) new LocalDateParamConverter();
         } else if (rawType.equals(LocalDateTime.class)) {
             return (ParamConverter<T>) new LocalDateTimeParamConverter();
+        } else if (rawType.equals(LocalTime.class)) {
+            return (ParamConverter<T>) new LocalTimeParamConverter();
         }
         return null;
     }
@@ -41,6 +44,30 @@ public class LocalDateParamConverterProvider implements ParamConverterProvider {
 
         @Override
         public String toString(LocalDate value) {
+            if (value != null) {
+                return value.toString();
+            }
+            return null;
+        }
+    }
+
+    public static class LocalTimeParamConverter implements ParamConverter<LocalTime> {
+        private static final Logger LOG = Logger.getLogger(LocalDateParamConverter.class.getName());
+
+        @Override
+        public LocalTime fromString(String value) {
+            if (value != null) {
+                try {
+                    return LocalTime.parse(value);
+                } catch (DateTimeParseException e) {
+                    LOG.log(Level.WARNING, "Invalid local time parameter value specified", e);
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public String toString(LocalTime value) {
             if (value != null) {
                 return value.toString();
             }

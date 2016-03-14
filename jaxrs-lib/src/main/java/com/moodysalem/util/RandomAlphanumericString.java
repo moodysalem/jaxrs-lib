@@ -3,12 +3,10 @@ package com.moodysalem.util;
 import java.security.SecureRandom;
 
 /**
- * Provides helper methods for generating a secure random string
+ * Provides helper methods for generating a random string using SecureRandom
  */
-public class RandomStringUtil {
-
+public class RandomAlphanumericString {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-
 
     private static final char[] SYMBOLS;
     private static final int NUM_SYMBOLS;
@@ -28,13 +26,13 @@ public class RandomStringUtil {
         NUM_SYMBOLS = SYMBOLS.length;
     }
 
-    public static String randomAlphaNumeric(int length) {
+    public static String get(int length) {
         StringBuilder sb = new StringBuilder();
         if (length < 0) {
             throw new IllegalArgumentException();
         }
         while (length > 0) {
-            length --;
+            length--;
             sb.append(SYMBOLS[SECURE_RANDOM.nextInt(NUM_SYMBOLS)]);
         }
         return sb.toString();

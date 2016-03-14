@@ -2,7 +2,7 @@ import com.moodysalem.jaxrs.lib.BaseApplication;
 import com.moodysalem.jaxrs.lib.filters.CORSFilter;
 import com.moodysalem.jaxrs.lib.filters.HTTPSFilter;
 import com.moodysalem.jaxrs.lib.test.BaseTest;
-import com.moodysalem.util.RandomStringUtil;
+import com.moodysalem.util.RandomAlphanumericString;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.testng.annotations.Test;
 
@@ -88,8 +88,8 @@ public class TestFilters extends BaseTest {
         public Response cors() {
 
             return Response.ok()
-                .header(X_CUSTOM_HEADER, RandomStringUtil.randomAlphaNumeric(64))
-                .header(X_ANOTHER_HEADER, RandomStringUtil.randomAlphaNumeric(32))
+                .header(X_CUSTOM_HEADER, RandomAlphanumericString.get(64))
+                .header(X_ANOTHER_HEADER, RandomAlphanumericString.get(32))
                 .build();
         }
 

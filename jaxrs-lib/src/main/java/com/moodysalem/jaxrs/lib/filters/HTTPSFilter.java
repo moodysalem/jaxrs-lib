@@ -4,10 +4,12 @@ import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.PreMatching;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
 import javax.ws.rs.ext.Provider;
 import java.io.IOException;
 
+/**
+ * Forces HTTPS for HTTP requests to an EC2 instance behind a load balancer
+ */
 @Provider
 @PreMatching
 public class HTTPSFilter implements ContainerRequestFilter {

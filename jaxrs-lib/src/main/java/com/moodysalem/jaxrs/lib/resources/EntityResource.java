@@ -340,6 +340,12 @@ public abstract class EntityResource<T extends BaseEntity> {
         return Response.ok(entity).build();
     }
 
+    /**
+     * Translates an exception to a human readable message
+     *
+     * @param e exception to translate
+     * @return a human readable message from the exception, if recognized
+     */
     private String translateExceptionToMessage(Exception e) {
         if (e == null) {
             return null;

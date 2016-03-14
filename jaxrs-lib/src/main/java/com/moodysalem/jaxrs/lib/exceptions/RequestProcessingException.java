@@ -19,19 +19,9 @@ public class RequestProcessingException extends RuntimeException {
         return statusCode;
     }
 
-    // default to bad request
-    public RequestProcessingException(String... errors) {
-        this.errors.addAll(Arrays.asList(errors));
-    }
-
-
-    public RequestProcessingException(Response.Status statusCode) {
+    public RequestProcessingException(Response.Status statusCode, String... errors) {
         super();
         this.statusCode = statusCode;
-    }
-
-    public RequestProcessingException(Response.Status statusCode, String... errors) {
-        this(statusCode);
         this.errors.addAll(Arrays.asList(errors));
     }
 

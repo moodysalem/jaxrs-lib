@@ -1,8 +1,8 @@
+import com.moodysalem.hibernate.model.BaseEntity;
 import com.moodysalem.jaxrs.lib.BaseApplication;
 import com.moodysalem.jaxrs.lib.factories.JAXRSEntityManagerFactory;
-import com.moodysalem.jaxrs.lib.test.BaseTest;
-import com.moodysalem.hibernate.model.BaseEntity;
 import com.moodysalem.jaxrs.lib.resources.EntityResource;
+import com.moodysalem.jaxrs.lib.test.BaseTest;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.glassfish.jersey.process.internal.RequestScoped;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -209,8 +209,9 @@ public class EntityResourceTest extends BaseTest {
         rc.register(new AbstractBinder() {
             @Override
             protected void configure() {
-                bindFactory(new JAXRSEntityManagerFactory("jdbc:h2:mem:tester;DB_CLOSE_DELAY=-1", "sa", "sa", "mpu", "ertest/schema.xml", true, null))
-                    .to(EntityManager.class).in(RequestScoped.class);
+                bindFactory(new JAXRSEntityManagerFactory("jdbc:h2:mem:tester;DB_CLOSE_DELAY=-1", "sa", "sa", "mpu",
+                    "ertest/schema.xml", true, null, null))
+                    .to(EntityManager.class).in(RequestScoped.class).proxy(true);
             }
         });
         // register the resource

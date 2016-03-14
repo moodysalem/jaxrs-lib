@@ -12,6 +12,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Adds CORS headers to all the corresponding resources, as long as the Skip annotation is not present on the class or the
+ * resource method
+ */
 public class CORSFilter implements DynamicFeature {
 
     public static final int ACCESS_CONTROL_CACHE_SECONDS = 2592000;
@@ -29,7 +33,7 @@ public class CORSFilter implements DynamicFeature {
     @Override
     public void configure(ResourceInfo resourceInfo, FeatureContext context) {
         if (!resourceInfo.getResourceClass().isAnnotationPresent(Skip.class) &&
-            !resourceInfo.getResourceMethod().isAnnotationPresent(Skip.class)) {
+                !resourceInfo.getResourceMethod().isAnnotationPresent(Skip.class)) {
             context.register(Filter.class);
         }
     }
@@ -48,7 +52,7 @@ public class CORSFilter implements DynamicFeature {
 
         @Override
         public void filter(ContainerRequestContext req, ContainerResponseContext resp)
-            throws IOException {
+                throws IOException {
             MultivaluedMap<String, Object> headers = resp.getHeaders();
 
             String origin = req.getHeaderString(ORIGIN_HEADER);
@@ -66,7 +70,7 @@ public class CORSFilter implements DynamicFeature {
                 }
 
                 Set<String> customHeaders = resp.getHeaders().keySet().stream()
-                    .filter((s) -> s != null && s.toUpperCase().startsWith("X-")).collect(Collectors.toSet());
+                        .filter((s) -> s != null && s.toUpperCase().startsWith("X-")).collect(Collectors.toSet());
                 if (customHeaders.size() > 0) {
                     headers.putSingle(ACCESS_CONTROL_EXPOSE_HEADERS, customHeaders.stream().collect(Collectors.joining(",")));
                 }

@@ -7,6 +7,9 @@ import javax.mail.Session;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+/**
+ * Provides a Session that can be used to send e-mails
+ */
 public class MailSessionFactory implements Factory<Session> {
     private static final Logger LOG = Logger.getLogger(MailSessionFactory.class.getName());
 
@@ -30,11 +33,11 @@ public class MailSessionFactory implements Factory<Session> {
 
         // Get the Session object
         session = Session.getInstance(props,
-            new javax.mail.Authenticator() {
-                protected PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication(username, password);
-                }
-            });
+                new javax.mail.Authenticator() {
+                    protected PasswordAuthentication getPasswordAuthentication() {
+                        return new PasswordAuthentication(username, password);
+                    }
+                });
     }
 
     @Override
