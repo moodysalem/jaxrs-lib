@@ -18,20 +18,23 @@ public class RequestProcessingExceptionMapper implements ExceptionMapper<Request
 
     @Override
     public Response toResponse(RequestProcessingException e) {
-        List<ErrorObject> errorObjects = new ArrayList<>();
+        ErrorResponse res = new ErrorResponse();
+        List<Error> errors = new ArrayList<>();
         if (e.getErrors() != null) {
             for (String err : e.getErrors()) {
                 if (err != null) {
-                    ErrorObject errObj = new ErrorObject();
+                    Error errObj = new Error();
                     errObj.setMessage(err);
-                    errorObjects.add(errObj);
+                    errors.add(errObj);
                 }
             }
         }
+        res.setErrors(errors);
+        res.setStatusCode(e.getStatusCode().getStatusCode());
 
         return Response.status(e.getStatusCode())
-            .entity(errorObjects)
-            .header(NUMBER_OF_ERRORS_HEADER, errorObjects.size())
+            .entity(res)
+            .header(NUMBER_OF_ERRORS_HEADER, res.getNumErrors())
             .build();
     }
 }

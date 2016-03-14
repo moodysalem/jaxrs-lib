@@ -14,13 +14,16 @@ import java.util.List;
 public class WebApplicationExceptionMapper implements ExceptionMapper<WebApplicationException> {
     @Override
     public Response toResponse(WebApplicationException e) {
-        List<ErrorObject> errors = new ArrayList<>();
-        ErrorObject err = new ErrorObject();
+        ErrorResponse response = new ErrorResponse();
+        List<Error> errors = new ArrayList<>();
+        Error err = new Error();
         err.setMessage(e.getMessage());
         errors.add(err);
+        response.setErrors(errors);
+        response.setStatusCode(e.getResponse().getStatus());
 
         return Response.fromResponse(e.getResponse())
-            .entity(errors)
+            .entity(response)
             .header(RequestProcessingExceptionMapper.NUMBER_OF_ERRORS_HEADER, errors.size())
             .build();
     }
