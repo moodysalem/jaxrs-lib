@@ -1,5 +1,6 @@
 import com.moodysalem.hibernate.model.BaseEntity;
 import com.moodysalem.jaxrs.lib.BaseApplication;
+import com.moodysalem.jaxrs.lib.exceptionmappers.ErrorResponse;
 import com.moodysalem.jaxrs.lib.factories.JAXRSEntityManagerFactory;
 import com.moodysalem.jaxrs.lib.resources.EntityResource;
 import com.moodysalem.jaxrs.lib.test.BaseTest;
@@ -227,6 +228,12 @@ public class EntityResourceTest extends BaseTest {
         me.setHometown("ABC");
         Response r = wt.request().post(Entity.json(me));
         assertTrue(r.getStatus() == 403);
+
+        ErrorResponse error = r.readEntity(ErrorResponse.class);
+        assertTrue(error.getStatusCode() == 403);
+        assertTrue(error.getErrors().size() == 1);
+        assertTrue(error.getNumErrors() == error.getErrors().size());
+        assertTrue(error.getErrors().get(0).getMessage() != null);
     }
 
     @Test

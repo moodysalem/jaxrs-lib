@@ -1,7 +1,10 @@
 package com.moodysalem.jaxrs.lib.exceptionmappers;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.List;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ErrorResponse {
     private int statusCode;
     private List<Error> errors;
