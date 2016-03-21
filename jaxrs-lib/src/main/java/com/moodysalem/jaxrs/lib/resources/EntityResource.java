@@ -83,7 +83,7 @@ public abstract class EntityResource<T extends BaseEntity> {
 
     @GET
     @Path("{id}")
-    public Response get(@PathParam("id") long id) {
+    public Response get(@PathParam("id") UUID id) {
         mustBeLoggedIn();
 
         T entity = getEntityWithId(id);
@@ -158,7 +158,7 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @param id of the entity to get
      * @return entity of type T with ID id
      */
-    protected T getEntityWithId(long id) {
+    protected T getEntityWithId(UUID id) {
         EntityManager em = getEntityManager();
         CriteriaBuilder cb = em.getCriteriaBuilder();
         CriteriaQuery<T> cq = cb.createQuery(this.getEntityClass());
@@ -304,7 +304,7 @@ public abstract class EntityResource<T extends BaseEntity> {
         mustBeLoggedIn();
 
         notNull(entity, getEntityName());
-        if (entity.getId() != 0) {
+        if (entity.getId() != null) {
             throw new RequestProcessingException(Response.Status.BAD_REQUEST,
                 ID_SHOULD_NOT_BE_INCLUDED_IN_A_POST);
         }
@@ -406,7 +406,7 @@ public abstract class EntityResource<T extends BaseEntity> {
     @PUT
     @Path("{id}")
     @Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
-    public Response put(@PathParam("id") long id, T entity) {
+    public Response put(@PathParam("id") UUID id, T entity) {
         mustBeLoggedIn();
 
         notNull(entity, getEntityName());
@@ -468,7 +468,7 @@ public abstract class EntityResource<T extends BaseEntity> {
             openTransaction();
             for (T entity : entities) {
                 try {
-                    if (entity.getId() != 0) {
+                    if (entity.getId() != null) {
                         savedEntities.add((T) put(entity.getId(), entity).getEntity());
                     } else {
                         savedEntities.add((T) post(entity).getEntity());
@@ -500,12 +500,12 @@ public abstract class EntityResource<T extends BaseEntity> {
         mustBeLoggedIn();
 
         String[] ids = csIds.split(Pattern.quote(","));
-        Set<Long> idSet = new HashSet<>();
-        for (String i : ids) {
+        Set<UUID> idSet = new HashSet<>();
+        for (String uid : ids) {
             try {
-                idSet.add(Long.parseLong(i));
+                idSet.add(UUID.fromString(uid));
             } catch (NumberFormatException e) {
-                throw new RequestProcessingException(Response.Status.BAD_REQUEST, String.format("Invalid ID passed to delete: %s.", i));
+                throw new RequestProcessingException(Response.Status.BAD_REQUEST, String.format("Invalid ID passed to delete: %s.", uid));
             }
         }
 
@@ -520,10 +520,10 @@ public abstract class EntityResource<T extends BaseEntity> {
         List<String> errors = new ArrayList<>();
 
         Set<T> entitiesToDelete = new HashSet<>();
-        for (Long i : idSet) {
-            T entity = getEntityWithId(i);
+        for (UUID id : idSet) {
+            T entity = getEntityWithId(id);
             if (entity == null) {
-                errors.add(String.format(NOT_FOUND, getEntityName(), i));
+                errors.add(String.format(NOT_FOUND, getEntityName(), id));
             } else {
                 entitiesToDelete.add(entity);
             }

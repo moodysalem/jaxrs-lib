@@ -7,6 +7,7 @@ import com.voodoodyne.jackson.jsog.JSOGGenerator;
 
 import javax.persistence.*;
 import java.util.Date;
+import java.util.UUID;
 
 @MappedSuperclass
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -14,8 +15,7 @@ import java.util.Date;
 public class BaseEntity {
     @Id
     @Column(name = "id", updatable = false, nullable = false)
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private UUID id;
 
     @Version
     @Column(name = "version", nullable = false)
@@ -31,11 +31,11 @@ public class BaseEntity {
     @Temporal(TemporalType.TIMESTAMP)
     private Date updated;
 
-    public long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
@@ -67,6 +67,9 @@ public class BaseEntity {
     protected void onCreate() {
         created = new Date();
         updated = new Date();
+        if (getId() == null) {
+            setId(UUID.randomUUID());
+        }
     }
 
     @PreUpdate
