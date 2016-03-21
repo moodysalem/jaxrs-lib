@@ -23,4 +23,20 @@
         </createTable>
     </changeSet>
 
+    <changeSet id="List table" author="moody.salem">
+        <createTable tableName="EntityStrings">
+            <column name="entityId" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="string" type="VARCHAR(191)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="EntityStrings" columnNames="entityId,string"/>
+        <addForeignKeyConstraint baseTableName="EntityStrings" baseColumnNames="entityId"
+                                 constraintName="FK_EntityStrings_MyEntity"
+                                 referencedTableName="MyEntity"
+                                 referencedColumnNames="id"/>
+    </changeSet>
+
 </databaseChangeLog>

@@ -11,9 +11,7 @@ import org.hibernate.validator.constraints.NotBlank;
 import org.testng.annotations.Test;
 
 import javax.inject.Inject;
-import javax.persistence.Column;
-import javax.persistence.EntityManager;
-import javax.persistence.Table;
+import javax.persistence.*;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.ws.rs.Path;
@@ -23,7 +21,9 @@ import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -45,6 +45,13 @@ public class EntityResourceTest extends BaseTest {
         @Column(name = "hometown", nullable = false, unique = true)
         private String hometown;
 
+        @Column(name = "string")
+        @ElementCollection
+        @CollectionTable(name = "EntityStrings", joinColumns = {
+            @JoinColumn(name = "entityId")
+        })
+        private Set<String> strings;
+
         public String getHometown() {
             return hometown;
         }
@@ -52,7 +59,16 @@ public class EntityResourceTest extends BaseTest {
         public void setHometown(String hometown) {
             this.hometown = hometown;
         }
+
+        public Set<String> getStrings() {
+            return strings;
+        }
+
+        public void setStrings(Set<String> strings) {
+            this.strings = strings;
+        }
     }
+
 
     @Path("myentity")
     public static class MyEntityResource extends EntityResource<MyEntity> {
@@ -242,6 +258,9 @@ public class EntityResourceTest extends BaseTest {
         WebTarget wt = target("myentity");
         MyEntity me = new MyEntity();
         me.setHometown("Chicago");
+        me.setStrings(new HashSet<>());
+        me.getStrings().add("hello");
+        me.getStrings().add("world");
         me = wt.request().post(Entity.json(me), MyEntity.class);
 
         me.setHometown("Austin");
