@@ -24,8 +24,6 @@ import javax.ws.rs.core.Response;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static org.testng.AssertJUnit.assertTrue;
 
@@ -305,21 +303,26 @@ public class EntityResourceTest extends BaseTest {
         assertTrue(r.getHeaderString(X_START).equals("20"));
         assertTrue(r.getHeaderString(X_COUNT).equals("40"));
 
-
+        // do a big request that exceeds the max count
         Response bigRequest = wt.queryParam(COUNT, 1000).queryParam(START, 20)
             .request().get();
         assertTrue(bigRequest.getHeaderString(X_COUNT).equals("500"));
+        assertTrue(bigRequest.getHeaderString(X_START).equals("20"));
 
-        List<MyEntity> lme = bigRequest.readEntity(new GenericType<List<MyEntity>>() {
-        });
-        Set<UUID> ids = lme.stream().map(MyEntity::getId).collect(Collectors.toSet());
+        // when count isn't specified, make sure the max page size is enforced
+        Response noCount = wt.queryParam(START, 20)
+            .request().get();
+        assertTrue(noCount.getHeaderString(X_COUNT).equals("500"));
+        assertTrue(noCount.getHeaderString(X_START).equals("20"));
 
+        // delete them all
         Response del = wt.request().delete();
         assertTrue(del.getStatus() == 204);
 
-        List<MyEntity> afterdelete = wt.request().get().readEntity(new GenericType<List<MyEntity>>() {
-        });
-        assertTrue(!afterdelete.stream().map(MyEntity::getId).anyMatch(ids::contains));
+        List<MyEntity> afterdelete = wt.request().get()
+            .readEntity(new GenericType<List<MyEntity>>() {
+            });
+        assertTrue(afterdelete.size() == 0);
     }
 
 }
