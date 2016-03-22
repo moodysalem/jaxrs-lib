@@ -110,7 +110,7 @@ public class EntityResourceTest extends BaseTest {
         }
 
         @Override
-        public String getFirstRecordQueryParameterName() {
+        public String getStartQueryParameterName() {
             return START;
         }
 
@@ -120,22 +120,12 @@ public class EntityResourceTest extends BaseTest {
         }
 
         @Override
-        public int getMaxPerPage() {
+        public Integer getMaxPerPage() {
             return 500;
         }
 
         @Override
-        public int getDefaultRecordsPerPage() {
-            return 20;
-        }
-
-        @Override
-        protected int getMaxBatchDeleteSize() {
-            return 100;
-        }
-
-        @Override
-        public String getFirstRecordHeader() {
+        public String getStartHeader() {
             return X_START;
         }
 
@@ -322,11 +312,14 @@ public class EntityResourceTest extends BaseTest {
 
         List<MyEntity> lme = bigRequest.readEntity(new GenericType<List<MyEntity>>() {
         });
-        String ids = lme.stream().limit(100).map(MyEntity::getId).map(UUID::toString).collect(Collectors.joining(","));
+        Set<UUID> ids = lme.stream().map(MyEntity::getId).collect(Collectors.toSet());
 
-        Response del = wt.path(ids).request().delete();
+        Response del = wt.request().delete();
         assertTrue(del.getStatus() == 204);
 
+        List<MyEntity> afterdelete = wt.request().get().readEntity(new GenericType<List<MyEntity>>() {
+        });
+        assertTrue(!afterdelete.stream().map(MyEntity::getId).anyMatch(ids::contains));
     }
 
 }

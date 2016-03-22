@@ -7,6 +7,7 @@ import org.hibernate.exception.ConstraintViolationException;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
 import javax.persistence.PersistenceException;
+import javax.persistence.TypedQuery;
 import javax.persistence.criteria.*;
 import javax.validation.ConstraintViolation;
 import javax.ws.rs.*;
@@ -25,6 +26,15 @@ import java.util.regex.Pattern;
 public abstract class EntityResource<T extends BaseEntity> {
 
     private static final Logger LOG = Logger.getLogger(EntityResource.class.getName());
+    public static final String S_WITH_ID_S_NOT_FOUND = "%s with ID %s not found";
+
+    /**
+     * Return the Class that this resource manages
+     *
+     * @return class that the resource manages
+     */
+    public abstract Class<T> getEntityClass();
+
 
     protected abstract ContainerRequestContext getContainerRequestContext();
 
@@ -42,19 +52,14 @@ public abstract class EntityResource<T extends BaseEntity> {
     public abstract int getMaxNumberOfSorts();
 
     // paging behavior
-    public abstract String getFirstRecordQueryParameterName();
+    public abstract String getStartQueryParameterName();
 
     public abstract String getCountQueryParameterName();
 
-    public abstract int getMaxPerPage();
-
-    public abstract int getDefaultRecordsPerPage();
-
-    // the number of records that can be deleted in a single request
-    protected abstract int getMaxBatchDeleteSize();
+    public abstract Integer getMaxPerPage();
 
     // name of the header that should indicate the first record returned
-    public abstract String getFirstRecordHeader();
+    public abstract String getStartHeader();
 
     // name of the header that should indicate the count of records returned
     public abstract String getCountHeader();
@@ -65,48 +70,101 @@ public abstract class EntityResource<T extends BaseEntity> {
     // whether the user is authenticated
     public abstract boolean isLoggedIn();
 
-    // error messages
+    // whether the resource rqeuires login
+    public abstract boolean requiresLogin();
+
+    // whether the entity can be created
+    public abstract boolean canCreate(T entity);
+
+    // whether the entity can be edited
+    public abstract boolean canEdit(T entity);
+
+    // whether the entity can be deleted
+    public abstract boolean canDelete(T entity);
+
+    // fill errors array with any validation error strings
+    protected abstract void validateEntity(List<String> errors, T entity);
+
+    // perform these actions before persisting the entity
+    public abstract void beforeCreate(T entity);
+
+    // perform these actions before merging the entity changes
+    public abstract void beforeEdit(T oldEntity, T entity);
+
+    // get a list of query predicates for lists
+    protected abstract void getPredicatesFromRequest(List<Predicate> predicates, Root<T> root);
+
+    // perform these actions after creating an entity
+    public abstract void afterCreate(T entity);
+
+    // used to perform transformations before sending back an entity in a response
+    public abstract void beforeSend(T entity);
+
+    // error message templates
     public static final String NOT_FOUND = "%1$s with ID %2$s not found.";
     public static final String NOT_AUTHORIZED_TO_CREATE = "Not authorized to create %1$s.";
     public static final String NOT_AUTHORIZED_TO_EDIT = "Not authorized to edit %1$s with ID %2$s";
-    public static final String ID_SHOULD_NOT_BE_INCLUDED_IN_A_POST = "ID should not be included in a post.";
     private static final String NOT_AUTHORIZED_TO_DELETE = "Not authorized to delete %1$s with ID %2$s.";
     public static final String VERSION_CONFLICT_ERROR = "%1$s with ID %2$s has since been edited.";
 
     ////////////////////////////////////GET/////////////////////////////////////////
 
-    private void mustBeLoggedIn() {
+    private void checkLoggedIn() {
         if (requiresLogin() && !isLoggedIn()) {
             throw new RequestProcessingException(Response.Status.UNAUTHORIZED, "You must be logged in to access this resource.");
         }
     }
 
+    /**
+     * Get a single entity with an ID
+     *
+     * @param id of the entity
+     * @return the entity corresponding to the ID
+     */
     @GET
     @Path("{id}")
     public Response get(@PathParam("id") UUID id) {
-        mustBeLoggedIn();
+        checkLoggedIn();
 
         T entity = getEntityWithId(id);
         if (entity == null) {
             throw new RequestProcessingException(Response.Status.NOT_FOUND,
                 String.format(NOT_FOUND, getEntityName(), id));
         }
+
         beforeSend(entity);
         return Response.ok(entity).build();
     }
 
 
+    /**
+     * Helper method to get a single query parameter
+     *
+     * @param param name of the query parameter
+     * @return the value assigned to the query parameter
+     */
     private String getQueryParameter(String param) {
         List<String> params = getQueryParameters(param);
         return params != null && params.size() > 0 ? params.get(0) : null;
     }
 
+    /**
+     * Helper method to get a list of values associated with a query parameter
+     *
+     * @param param name of the query parameter
+     * @return list of values assigned to query parameter
+     */
     private List<String> getQueryParameters(String param) {
         return getContainerRequestContext().getUriInfo().getQueryParameters().get(param);
     }
 
+    /**
+     * Get the first record that should be returned
+     *
+     * @return an int corresponding to the first record to return
+     */
     private int getStart() {
-        String start = getQueryParameter(getFirstRecordQueryParameterName());
+        String start = getQueryParameter(getStartQueryParameterName());
         if (start != null) {
             try {
                 return Math.max(Integer.parseInt(start), 0);
@@ -117,24 +175,43 @@ public abstract class EntityResource<T extends BaseEntity> {
         return 0;
     }
 
-    private int getCount() {
-        String count = getQueryParameter(getCountQueryParameterName());
-        if (count != null) {
+    /**
+     * Get the # of records that should be returned
+     *
+     * @return the # of records, or null if all should be returned
+     */
+    private Integer getCount() {
+        String countString = getQueryParameter(getCountQueryParameterName());
+        Integer maxCount = getMaxPerPage();
+        Integer count = null;
+        if (countString != null) {
             try {
-                return Math.max(Math.min(Integer.parseInt(count), getMaxPerPage()), 1);
-            } catch (Exception e) {
-                LOG.log(Level.WARNING, "Invalid count received", e);
+                count = Integer.parseInt(countString);
+            } catch (NumberFormatException e) {
+                LOG.fine(String.format("Invalid count passed to GET: %s", countString));
             }
         }
-        return getDefaultRecordsPerPage();
+
+        if (count != null) {
+            if (maxCount != null) {
+                return Math.max(Math.min(count, maxCount), 0);
+            } else {
+                return Math.max(count, 0);
+            }
+        }
+        return maxCount;
     }
 
-
+    /**
+     * Return a list of type T to the client, including headers about pagination
+     *
+     * @return response with entity list and headers corresponding to pagination details
+     */
     @GET
     public Response getList() {
-        mustBeLoggedIn();
+        checkLoggedIn();
 
-        int count = getCount();
+        Integer count = getCount();
         int start = getStart();
 
         // get the entities
@@ -146,7 +223,7 @@ public abstract class EntityResource<T extends BaseEntity> {
 
         // return the filtered and mapped list of entities
         return Response.ok(entities)
-            .header(getFirstRecordHeader(), start)
+            .header(getStartHeader(), start)
             .header(getCountHeader(), count)
             .header(getTotalCountHeader(), totalCount)
             .build();
@@ -176,7 +253,11 @@ public abstract class EntityResource<T extends BaseEntity> {
         return (entity.size() == 1 ? entity.get(0) : null);
     }
 
-
+    /**
+     * Get the total count of entities in the database that match the predicates
+     *
+     * @return the total count of entities that match the predicates
+     */
     protected long getTotalCountOfEntities() {
         EntityManager em = getEntityManager();
         CriteriaBuilder cb = em.getCriteriaBuilder();
@@ -192,7 +273,18 @@ public abstract class EntityResource<T extends BaseEntity> {
         return em.createQuery(countQuery).getSingleResult();
     }
 
-    protected List<T> getListOfEntities(int numRecords, int firstRecord) {
+    /**
+     * Get a list of entities with a maximum size of count, starting at start
+     *
+     * @param count max # of entities to get
+     * @param start which entity to start at
+     * @return a list of type T from the database
+     */
+    protected List<T> getListOfEntities(Integer count, int start) {
+        if (count != null && count <= 0) {
+            return Collections.<T>emptyList();
+        }
+
         EntityManager em = getEntityManager();
         CriteriaBuilder cb = em.getCriteriaBuilder();
 
@@ -215,13 +307,22 @@ public abstract class EntityResource<T extends BaseEntity> {
             cq.orderBy(orderBys);
         }
 
-        return em.createQuery(cq)
-            .setMaxResults(numRecords)
-            .setFirstResult(firstRecord)
-            .getResultList();
+        TypedQuery<T> query = em.createQuery(cq)
+            .setFirstResult(start);
+
+        if (count != null) {
+            query.setMaxResults(count);
+        }
+
+        return query.getResultList();
     }
 
-
+    /**
+     * Get a list of Orders from the request
+     *
+     * @param from the root of the query
+     * @return a list of orders
+     */
     protected List<Order> getOrderFromRequest(Root<T> from) {
         List<Order> orders = new ArrayList<>();
         getOrderFromRequest(from, orders);
@@ -288,7 +389,12 @@ public abstract class EntityResource<T extends BaseEntity> {
         }
     }
 
-    // parse the request to return the predicates that should result from the parameters
+    /**
+     * Parse the request to get the query parameters to append to the GET requests
+     *
+     * @param root the root of the query
+     * @return a list of predicates to apply to the query
+     */
     private List<Predicate> getPredicatesFromRequest(Root<T> root) {
         List<Predicate> predicates = new ArrayList<>();
         getPredicatesFromRequest(predicates, root);
@@ -298,16 +404,17 @@ public abstract class EntityResource<T extends BaseEntity> {
     ////////////////////////////////////GET/////////////////////////////////////////
     ///////////////////////////////////POST/////////////////////////////////////////
 
+    /**
+     * Create an entity
+     *
+     * @param entity data to persist
+     * @return a response containing the saved entity
+     */
     @POST
-    @Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
     public Response post(T entity) {
-        mustBeLoggedIn();
+        checkLoggedIn();
 
         notNull(entity, getEntityName());
-        if (entity.getId() != null) {
-            throw new RequestProcessingException(Response.Status.BAD_REQUEST,
-                ID_SHOULD_NOT_BE_INCLUDED_IN_A_POST);
-        }
         if (!canCreate(entity)) {
             throw new RequestProcessingException(Response.Status.FORBIDDEN,
                 String.format(NOT_AUTHORIZED_TO_CREATE, getEntityName()));
@@ -337,7 +444,8 @@ public abstract class EntityResource<T extends BaseEntity> {
                 translateExceptionToMessage(e)
             );
         }
-        return Response.ok(entity).build();
+
+        return get(entity.getId());
     }
 
     /**
@@ -392,22 +500,33 @@ public abstract class EntityResource<T extends BaseEntity> {
         return msg;
     }
 
-    // helper method to create a list so it's never null
+    /**
+     * Validate an entity and return a list of validation errors
+     *
+     * @param entity to validate
+     * @return a list of errors
+     */
     private List<String> validateEntity(T entity) {
         List<String> errors = new ArrayList<>();
         validateEntity(errors, entity);
         return errors;
     }
 
-
     ///////////////////////////////////POST/////////////////////////////////////////
+    ///////////////////////////////////PUT/////////////////////////////////////////
 
 
+    /**
+     * Save an entity that already exists
+     *
+     * @param id     of the entity to save
+     * @param entity data to merge
+     * @return saved entity
+     */
     @PUT
     @Path("{id}")
-    @Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
     public Response put(@PathParam("id") UUID id, T entity) {
-        mustBeLoggedIn();
+        checkLoggedIn();
 
         notNull(entity, getEntityName());
         T entityToEdit = getEntityWithId(id);
@@ -453,112 +572,45 @@ public abstract class EntityResource<T extends BaseEntity> {
                 translateExceptionToMessage(e)
             );
         }
+
         return get(id);
     }
 
-    @SuppressWarnings("unchecked")
-    @PUT
-    @Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
-    public Response putAll(List<T> entities) {
-        mustBeLoggedIn();
+    ///////////////////////////////////PUT/////////////////////////////////////////
+    ///////////////////////////////////DELETE/////////////////////////////////////////
 
-        List<T> savedEntities = new ArrayList<>();
-        List<String> errors = new ArrayList<>();
-        try {
-            openTransaction();
-            for (T entity : entities) {
-                try {
-                    if (entity.getId() != null) {
-                        savedEntities.add((T) put(entity.getId(), entity).getEntity());
-                    } else {
-                        savedEntities.add((T) post(entity).getEntity());
-                    }
-                } catch (Exception e) {
-                    LOG.log(Level.SEVERE, "Failed to save entity in collection", e);
-                    errors.add(translateExceptionToMessage(e));
-                }
-            }
-            if (errors.size() == 0) {
-                commit();
-            } else {
-                rollback();
-            }
-        } catch (Exception e) {
-            rollback();
-            LOG.log(Level.SEVERE, "Failed to save collection edits", e);
-            errors.add(translateExceptionToMessage(e));
-        }
-        if (errors.size() > 0) {
-            throw new RequestProcessingException(errors);
-        }
-        return Response.ok(savedEntities).build();
-    }
-
+    /**
+     * Delete a single entity
+     *
+     * @param id of the entity to delete
+     * @return 204 if successful, otherwise error message
+     */
     @DELETE
     @Path("{id}")
-    public Response delete(@PathParam("id") String csIds) {
-        mustBeLoggedIn();
+    public Response delete(@PathParam("id") UUID id) {
+        checkLoggedIn();
 
-        String[] ids = csIds.split(Pattern.quote(","));
-        Set<UUID> idSet = new HashSet<>();
-        for (String uid : ids) {
-            try {
-                idSet.add(UUID.fromString(uid));
-            } catch (NumberFormatException e) {
-                throw new RequestProcessingException(Response.Status.BAD_REQUEST, String.format("Invalid ID passed to delete: %s.", uid));
-            }
+        T entity = getEntityWithId(id);
+        if (entity == null) {
+            throw new RequestProcessingException(Response.Status.NOT_FOUND,
+                String.format(S_WITH_ID_S_NOT_FOUND, getEntityName(), id));
         }
 
-        // verify they're not deleting too many
-        if (idSet.size() > getMaxBatchDeleteSize()) {
-            throw new RequestProcessingException(
-                Response.Status.BAD_REQUEST,
-                String.format("Number of IDs exceeds the maximum delete batch size of %d", getMaxBatchDeleteSize())
-            );
-        }
-
-        List<String> errors = new ArrayList<>();
-
-        Set<T> entitiesToDelete = new HashSet<>();
-        for (UUID id : idSet) {
-            T entity = getEntityWithId(id);
-            if (entity == null) {
-                errors.add(String.format(NOT_FOUND, getEntityName(), id));
-            } else {
-                entitiesToDelete.add(entity);
-            }
-        }
-
-        if (errors.size() > 0) {
-            throw new RequestProcessingException(Response.Status.NOT_FOUND, errors);
-        }
-
-        for (T ent : entitiesToDelete) {
-            if (!canDelete(ent)) {
-                errors.add(String.format(NOT_AUTHORIZED_TO_DELETE, getEntityName(), ent.getId()));
-            }
-        }
-
-        if (errors.size() > 0) {
-            throw new RequestProcessingException(Response.Status.FORBIDDEN, errors);
+        if (!canDelete(entity)) {
+            throw new RequestProcessingException(Response.Status.FORBIDDEN,
+                String.format(NOT_AUTHORIZED_TO_DELETE, getEntityName(), entity.getId()));
         }
 
         try {
             openTransaction();
-            for (T entity : entitiesToDelete) {
-                try {
-                    deleteEntity(entity);
-                } catch (Exception e) {
-                    errors.add(translateExceptionToMessage(e));
-                }
+            try {
+                deleteEntity(entity);
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, "failed to delete single entity", e);
+                throw new RequestProcessingException(Response.Status.INTERNAL_SERVER_ERROR,
+                    "Failed to delete resource", translateExceptionToMessage(e));
             }
-            // no errors encountered, do commit
-            if (errors.size() == 0) {
-                commit();
-            } else {
-                //otherwise rollback
-                rollback();
-            }
+            commit();
         } catch (Exception e) {
             rollback();
             LOG.log(Level.SEVERE, "Failed to delete resource", e);
@@ -568,18 +620,42 @@ public abstract class EntityResource<T extends BaseEntity> {
             );
         }
 
-        if (errors.size() > 0) {
-            throw new RequestProcessingException(Response.Status.CONFLICT, errors);
-        }
-
         return Response.status(Response.Status.NO_CONTENT).build();
     }
 
-    // override to delete by setting a field
+    @DELETE
+    public Response deleteAll() {
+        checkLoggedIn();
+
+        List<T> toDelete = getListOfEntities(null, 0);
+
+        if (!toDelete.stream().allMatch(this::canDelete)) {
+            throw new RequestProcessingException(Response.Status.FORBIDDEN, "You are not permitted to delete all the entities matching your request.");
+        }
+
+        try {
+            openTransaction();
+            try {
+                toDelete.stream().forEach(this::deleteEntity);
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, "failed to delete single entity", e);
+            }
+            commit();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Failed to delete resources", e);
+            throw new RequestProcessingException(Response.Status.CONFLICT, "Failed to delete resource",
+                translateExceptionToMessage(e));
+        }
+
+        return Response.noContent().build();
+    }
+
+    // override this method delete by e.g. setting a field
     protected void deleteEntity(T entityToDelete) {
         getEntityManager().remove(entityToDelete);
     }
 
+    ///////////////////////////////////DELETE/////////////////////////////////////////
     ////////////////////////////TRANSACTION HELPERS////////////////////////////////////////////////////
     private EntityTransaction etx;
 
@@ -611,30 +687,12 @@ public abstract class EntityResource<T extends BaseEntity> {
         etx.rollback();
         etx = null;
     }
-    ////////////////////////////TRANSACTION HELPERS////////////////////////////////////////////////////
 
-    public abstract Class<T> getEntityClass();
-
-    public abstract boolean requiresLogin();
-
-    public abstract boolean canCreate(T entity);
-
-    public abstract boolean canEdit(T entity);
-
-    public abstract boolean canDelete(T entity);
-
-    protected abstract void validateEntity(List<String> errors, T entity);
-
-    public abstract void beforeCreate(T entity);
-
-    public abstract void beforeEdit(T oldEntity, T entity);
-
-    protected abstract void getPredicatesFromRequest(List<Predicate> predicates, Root<T> root);
-
-    public abstract void afterCreate(T entity);
-
-    public abstract void beforeSend(T entity);
-
+    /**
+     * Return the name of the entity class
+     *
+     * @return name of the entity class, used in error messages
+     */
     protected String getEntityName() {
         return getEntityClass().getSimpleName();
     }
