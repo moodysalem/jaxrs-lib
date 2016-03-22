@@ -256,20 +256,6 @@
   </profiles>
 
   <build>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-scm-plugin</artifactId>
-          <version>1.9.4</version>
-          <configuration>
-            <username>${GIT_USERNAME}</username>
-            <password>${GIT_PASSWORD}</password>
-          </configuration>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
