@@ -259,9 +259,9 @@
     <pluginManagement>
       <plugins>
         <plugin>
-          <groupId>maven</groupId>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-scm-plugin</artifactId>
-          <version>1.6.1</version>
+          <version>1.9.4</version>
           <configuration>
             <username>${GIT_USERNAME}</username>
             <password>${GIT_PASSWORD}</password>
