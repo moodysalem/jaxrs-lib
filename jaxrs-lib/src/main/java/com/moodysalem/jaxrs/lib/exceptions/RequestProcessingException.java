@@ -1,59 +1,86 @@
 package com.moodysalem.jaxrs.lib.exceptions;
 
+import com.moodysalem.jaxrs.lib.exceptionmappers.Error;
+import jersey.repackaged.com.google.common.collect.Lists;
+
 import javax.ws.rs.core.Response;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class RequestProcessingException extends RuntimeException {
 
-    private List<String> errors = new ArrayList<>();
-    private Response.Status statusCode = Response.Status.BAD_REQUEST;
+    private final List<Error> errors = new ArrayList<>();
+    private int statusCode;
 
-    public List<String> getErrors() {
+    public List<Error> getErrors() {
         return errors;
     }
 
-    public Response.Status getStatusCode() {
+    public int getStatusCode() {
         return statusCode;
     }
 
-    public RequestProcessingException(Response.Status statusCode, String... errors) {
-        super();
+    private void setStatusCode(Response.Status status) {
+        setStatusCode((status != null) ? status.getStatusCode() : 400);
+    }
+
+    private void setStatusCode(int statusCode) {
         this.statusCode = statusCode;
-        this.errors.addAll(Arrays.asList(errors));
     }
 
-    public RequestProcessingException(Response.Status statusCode, Collection<String> errors) {
-        this(statusCode);
-        this.errors.addAll(errors);
-    }
-
-    public RequestProcessingException(Collection<String> errors) {
-        this.errors.addAll(errors);
-    }
-
-    @Override
-    public String getMessage() {
-        return join(this.errors, "; ");
-    }
-
-    private static String join(List<String> strings, String separator) {
-        if (strings == null) {
-            return null;
+    private void addError(String error) {
+        if (error != null) {
+            errors.add(new Error(error));
         }
-        StringBuilder result = new StringBuilder();
-        for (String x : strings) {
-            if (x == null) {
-                continue;
-            }
-            if (result.length() > 0) {
-                result.append(separator);
-            }
-            result.append(x);
-        }
-        return result.toString();
     }
 
+    private void addError(Error error) {
+        if (error != null) {
+            errors.add(error);
+        }
+    }
+
+    public RequestProcessingException(int statusCode, Error... errors) {
+        setStatusCode(statusCode);
+        if (errors != null) {
+            for (Error e : errors) {
+                addError(e);
+            }
+        }
+    }
+
+    public RequestProcessingException(Response.Status status, Error... errors) {
+        setStatusCode(statusCode);
+        if (errors != null) {
+            for (Error e : errors) {
+                addError(e);
+            }
+        }
+    }
+
+    public RequestProcessingException(Response.Status status, String... errors) {
+        setStatusCode(status);
+        if (errors != null) {
+            for (String e : errors) {
+                addError(e);
+            }
+        }
+    }
+
+    public RequestProcessingException(int statusCode, String... errors) {
+        setStatusCode(statusCode);
+        if (errors != null) {
+            for (String e : errors) {
+                addError(e);
+            }
+        }
+    }
+
+    public RequestProcessingException(Error... errors) {
+        this(400, errors);
+    }
+
+    public RequestProcessingException(String... errors) {
+        this(400, errors);
+    }
 }

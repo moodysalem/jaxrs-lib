@@ -8,14 +8,15 @@ import java.util.Properties;
 import java.util.logging.Logger;
 
 /**
- * Provides a Session that can be used to send e-mails
+ * Provides a javax.mail.Session for sending e-mails
  */
 public class MailSessionFactory implements Factory<Session> {
     private static final Logger LOG = Logger.getLogger(MailSessionFactory.class.getName());
 
     private Session session;
 
-    public MailSessionFactory(String host, final String username, final String password, int port) {
+    public MailSessionFactory(String host, final String username, final String password, int port,
+                              Properties additionalProperties) {
         // Create a Properties object to contain connection configuration information.
         Properties props = new Properties();
         props.put("mail.smtp.host", host);
@@ -28,6 +29,10 @@ public class MailSessionFactory implements Factory<Session> {
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.starttls.enable", "true");
         props.put("mail.smtp.starttls.required", "true");
+
+        if (additionalProperties != null) {
+            props.putAll(additionalProperties);
+        }
 
         LOG.info("Created mail session with the following properties: " + props.toString());
 
@@ -42,7 +47,7 @@ public class MailSessionFactory implements Factory<Session> {
 
     @Override
     public Session provide() {
-        LOG.info("Distributing mail session.");
+        LOG.info("Distributing mail session");
         return session;
     }
 

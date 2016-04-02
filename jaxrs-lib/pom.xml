@@ -11,12 +11,6 @@
   <artifactId>jaxrs-lib</artifactId>
 
   <dependencies>
-    <!-- jackson serialization of object graph support -->
-    <dependency>
-      <groupId>com.voodoodyne.jackson.jsog</groupId>
-      <artifactId>jackson-jsog</artifactId>
-    </dependency>
-
     <!-- java ee stuff -->
     <dependency>
       <groupId>javax.servlet</groupId>

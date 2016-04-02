@@ -19,6 +19,9 @@ import java.time.LocalTime;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * Adds support for serializing and deserializing LocalDate and LocalDateTime and LocalTime fields
+ */
 public class JodaTimeSerializerModule extends SimpleModule {
 
     private static final Logger LOG = Logger.getLogger(JodaTimeSerializerModule.class.getName());
@@ -27,7 +30,7 @@ public class JodaTimeSerializerModule extends SimpleModule {
         super("JodaTime Serializer Module");
         addDeserializer(LocalDate.class, new JsonDeserializer<LocalDate>() {
             @Override
-            public LocalDate deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+            public LocalDate deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
                 ObjectCodec oc = jsonParser.getCodec();
                 TextNode node = oc.readTree(jsonParser);
                 String dateString = node.textValue();
@@ -45,14 +48,14 @@ public class JodaTimeSerializerModule extends SimpleModule {
 
         addSerializer(LocalDate.class, new JsonSerializer<LocalDate>() {
             @Override
-            public void serialize(LocalDate localDate, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+            public void serialize(LocalDate localDate, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
                 jsonGenerator.writeString((localDate != null) ? localDate.toString() : null);
             }
         });
 
         addDeserializer(LocalDateTime.class, new JsonDeserializer<LocalDateTime>() {
             @Override
-            public LocalDateTime deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+            public LocalDateTime deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
                 ObjectCodec oc = jsonParser.getCodec();
                 TextNode node = oc.readTree(jsonParser);
                 String dateString = node.textValue();
@@ -70,7 +73,7 @@ public class JodaTimeSerializerModule extends SimpleModule {
 
         addSerializer(LocalDateTime.class, new JsonSerializer<LocalDateTime>() {
             @Override
-            public void serialize(LocalDateTime localDateTime, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+            public void serialize(LocalDateTime localDateTime, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
                 jsonGenerator.writeString((localDateTime != null) ? localDateTime.toString() : null);
             }
         });
@@ -78,7 +81,7 @@ public class JodaTimeSerializerModule extends SimpleModule {
 
         addDeserializer(LocalTime.class, new JsonDeserializer<LocalTime>() {
             @Override
-            public LocalTime deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+            public LocalTime deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
                 ObjectCodec oc = jsonParser.getCodec();
                 TextNode node = oc.readTree(jsonParser);
                 String timeString = node.textValue();
@@ -96,7 +99,7 @@ public class JodaTimeSerializerModule extends SimpleModule {
 
         addSerializer(LocalTime.class, new JsonSerializer<LocalTime>() {
             @Override
-            public void serialize(LocalTime localTime, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+            public void serialize(LocalTime localTime, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
                 jsonGenerator.writeString((localTime != null) ? localTime.toString() : null);
             }
         });

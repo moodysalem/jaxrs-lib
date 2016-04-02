@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Maps web application exceptions to the same format as the request processing exceptions
+ * Maps web application exceptions to error responses
  */
 @Provider
 public class WebApplicationExceptionMapper implements ExceptionMapper<WebApplicationException> {
@@ -16,15 +16,13 @@ public class WebApplicationExceptionMapper implements ExceptionMapper<WebApplica
     public Response toResponse(WebApplicationException e) {
         ErrorResponse response = new ErrorResponse();
         List<Error> errors = new ArrayList<>();
-        Error err = new Error();
-        err.setMessage(e.getMessage());
-        errors.add(err);
+        errors.add(new Error(e.getMessage()));
         response.setErrors(errors);
         response.setStatusCode(e.getResponse().getStatus());
 
         return Response.fromResponse(e.getResponse())
-            .entity(response)
-            .header(RequestProcessingExceptionMapper.NUMBER_OF_ERRORS_HEADER, errors.size())
-            .build();
+                .entity(response)
+                .header(RequestProcessingExceptionMapper.NUMBER_OF_ERRORS_HEADER, errors.size())
+                .build();
     }
 }

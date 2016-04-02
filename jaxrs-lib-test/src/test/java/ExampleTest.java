@@ -1,5 +1,5 @@
 import com.fasterxml.jackson.databind.JsonNode;
-import com.moodysalem.jaxrs.lib.filters.HTTPSFilter;
+import com.moodysalem.jaxrs.lib.filters.ElasticLoadBalancerHTTPSFilter;
 import org.testng.annotations.Test;
 
 import javax.ws.rs.client.Entity;
@@ -50,7 +50,7 @@ public class ExampleTest extends ExampleBaseTest {
         ro.setLdt(LocalDateTime.now());
 
         Response r = target("test").request()
-            .header(HTTPSFilter.PROTO_HEADER, "http")
+            .header(ElasticLoadBalancerHTTPSFilter.PROTO_HEADER, "http")
             .post(Entity.entity(ro, MediaType.APPLICATION_JSON));
 
         assertTrue(r.getStatus() == 200);

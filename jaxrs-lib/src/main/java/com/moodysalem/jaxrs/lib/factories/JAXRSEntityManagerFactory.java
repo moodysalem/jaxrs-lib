@@ -18,6 +18,8 @@ import java.util.logging.Logger;
 
 /**
  * Provides a hibernate entity manager that is used for persisting classes to/from the database
+ * <p>
+ * Also runs migrations against the database when instantiated
  */
 public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
 
@@ -53,9 +55,13 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
     private EntityManagerFactory _emf;
 
     static {
+        // We need to do this only once so that all the JDBC drivers are on the classpath
         loadDrivers();
     }
 
+    /**
+     * Load all the JDBC drivers that are typically used in a hibernate application
+     */
     private static void loadDrivers() {
         for (String driverName : DRIVERS) {
             try {
@@ -67,6 +73,9 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
         }
     }
 
+    /**
+     * Create an entity manager factory which is used to provide entity managers to the requests
+     */
     private EntityManagerFactory createEMF(Properties additionalProperties) {
         Properties properties = new Properties();
         properties.setProperty("hibernate.connection.url", url);
@@ -95,6 +104,9 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
         return Persistence.createEntityManagerFactory(persistenceUnit, properties);
     }
 
+    /**
+     * Run the migrations in the changelog associated with this entity manager
+     */
     private void runMigrations() {
         if (changelogFile != null) {
             try (Connection c = DriverManager.getConnection(url, user, password)) {

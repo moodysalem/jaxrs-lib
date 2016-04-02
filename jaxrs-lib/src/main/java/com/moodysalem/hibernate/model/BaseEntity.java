@@ -1,18 +1,16 @@
 package com.moodysalem.hibernate.model;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.voodoodyne.jackson.jsog.JSOGGenerator;
 
 import javax.persistence.*;
 import java.util.Date;
+import java.util.Objects;
 import java.util.UUID;
 
 @MappedSuperclass
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonIdentityInfo(generator = JSOGGenerator.class)
-public class BaseEntity {
+public abstract class BaseEntity {
     @Id
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
@@ -84,6 +82,6 @@ public class BaseEntity {
      * @return true if the IDs match
      */
     public boolean idMatch(BaseEntity other) {
-        return other != null && other.getId() == getId();
+        return other != null && Objects.equals(getId(), other.getId());
     }
 }

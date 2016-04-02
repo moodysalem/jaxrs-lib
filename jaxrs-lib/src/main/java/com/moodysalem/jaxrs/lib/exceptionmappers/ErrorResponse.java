@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.List;
 
+/**
+ * This represents the structure of an error response from this server
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ErrorResponse {
     private int statusCode;

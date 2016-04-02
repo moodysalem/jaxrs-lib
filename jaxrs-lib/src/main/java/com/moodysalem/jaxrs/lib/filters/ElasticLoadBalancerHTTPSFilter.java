@@ -12,7 +12,7 @@ import java.io.IOException;
  */
 @Provider
 @PreMatching
-public class HTTPSFilter implements ContainerRequestFilter {
+public class ElasticLoadBalancerHTTPSFilter implements ContainerRequestFilter {
     public static final String PROTO_HEADER = "X-Forwarded-Proto";
     public static final String HTTPS = "https";
 

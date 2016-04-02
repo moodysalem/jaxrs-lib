@@ -13,8 +13,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Adds CORS headers to all the corresponding resources, as long as the Skip annotation is not present on the class or the
- * resource method
+ * Adds CORS headers to all the corresponding resources
+ * <p>
+ * Apply the Skip annotation to a method or class to disable this filter for a specific method or class
  */
 public class CORSFilter implements DynamicFeature {
 
@@ -29,7 +30,12 @@ public class CORSFilter implements DynamicFeature {
     public static final String ALL_METHODS = "GET,POST,DELETE,PUT,OPTIONS";
     public static final String ORIGIN_HEADER = "Origin";
 
-
+    /**
+     * Apply the filter to the methods and classes that don't have the Skip annotation
+     *
+     * @param resourceInfo info about the resource method
+     * @param context      registration context
+     */
     @Override
     public void configure(ResourceInfo resourceInfo, FeatureContext context) {
         if (!resourceInfo.getResourceClass().isAnnotationPresent(Skip.class) &&
@@ -38,7 +44,6 @@ public class CORSFilter implements DynamicFeature {
         }
     }
 
-    // @Compress annotation is the name binding annotation
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Skip {
     }

@@ -12,6 +12,10 @@ import java.time.format.DateTimeParseException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * Allows Jersey to handle JodaTime types as parameters
+ */
+@SuppressWarnings("unchecked")
 @Provider
 public class JodaTimeParamConverterProvider implements ParamConverterProvider {
 

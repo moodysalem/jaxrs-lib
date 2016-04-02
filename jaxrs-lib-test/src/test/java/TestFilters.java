@@ -1,8 +1,7 @@
 import com.moodysalem.jaxrs.lib.BaseApplication;
 import com.moodysalem.jaxrs.lib.filters.CORSFilter;
-import com.moodysalem.jaxrs.lib.filters.HTTPSFilter;
+import com.moodysalem.jaxrs.lib.filters.ElasticLoadBalancerHTTPSFilter;
 import com.moodysalem.jaxrs.lib.test.BaseTest;
-import com.moodysalem.util.RandomAlphanumericString;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.testng.annotations.Test;
 
@@ -22,13 +21,13 @@ import static org.testng.AssertJUnit.assertTrue;
 
 public class TestFilters extends BaseTest {
 
-    public static final String X_CUSTOM_HEADER = "X-Custom-Header";
-    public static final String X_ANOTHER_HEADER = "X-Another-Header";
+    private static final String X_CUSTOM_HEADER = "X-Custom-Header";
+    private static final String X_ANOTHER_HEADER = "X-Another-Header";
 
     @Test
     public void testHttpsFilter() throws URISyntaxException {
         Response r = target("some/path/string").queryParam("test", "ab").request()
-                .header(HTTPSFilter.PROTO_HEADER, "http").get();
+                .header(ElasticLoadBalancerHTTPSFilter.PROTO_HEADER, "http").get();
         assertTrue(r.getStatus() == Response.Status.FOUND.getStatusCode());
         URI base = target().getUri();
         URI loc = new URI(r.getHeaderString("Location"));
@@ -59,8 +58,8 @@ public class TestFilters extends BaseTest {
         assertTrue("true".equals(r.getHeaderString(CORSFilter.ACCESS_CONTROL_ALLOW_CREDENTIALS)));
         assertTrue(fakeOrigin.equals(r.getHeaderString(CORSFilter.ACCESS_CONTROL_ALLOW_ORIGIN)));
         assertTrue("2592000".equals(r.getHeaderString(CORSFilter.ACCESS_CONTROL_MAX_AGE)));
-        assertTrue(r.getHeaderString(X_CUSTOM_HEADER).length() == 64);
-        assertTrue(r.getHeaderString(X_ANOTHER_HEADER).length() == 32);
+        assertTrue(r.getHeaderString(X_CUSTOM_HEADER).length() > 0);
+        assertTrue(r.getHeaderString(X_ANOTHER_HEADER).length() > 0);
     }
 
     // test that the filter can be skipped by setting a request property
@@ -88,9 +87,9 @@ public class TestFilters extends BaseTest {
         public Response cors() {
 
             return Response.ok()
-                .header(X_CUSTOM_HEADER, RandomAlphanumericString.get(64))
-                .header(X_ANOTHER_HEADER, RandomAlphanumericString.get(32))
-                .build();
+                    .header(X_CUSTOM_HEADER, "Custom Header One")
+                    .header(X_ANOTHER_HEADER, "Custom Header Two")
+                    .build();
         }
 
         @GET

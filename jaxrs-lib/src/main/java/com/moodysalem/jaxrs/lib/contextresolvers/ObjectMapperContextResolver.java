@@ -6,6 +6,9 @@ import com.moodysalem.jaxrs.lib.contextresolvers.jackson.modules.JodaTimeSeriali
 import javax.ws.rs.ext.ContextResolver;
 import javax.ws.rs.ext.Provider;
 
+/**
+ * Provides an object mapper with additional serialization support
+ */
 @Provider
 public class ObjectMapperContextResolver implements ContextResolver<ObjectMapper> {
     private static final ObjectMapper om;

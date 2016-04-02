@@ -3,7 +3,7 @@ package com.moodysalem.jaxrs.lib;
 import com.moodysalem.jaxrs.lib.contextresolvers.ObjectMapperContextResolver;
 import com.moodysalem.jaxrs.lib.converters.JodaTimeParamConverterProvider;
 import com.moodysalem.jaxrs.lib.filters.CORSFilter;
-import com.moodysalem.jaxrs.lib.filters.HTTPSFilter;
+import com.moodysalem.jaxrs.lib.filters.ElasticLoadBalancerHTTPSFilter;
 import com.moodysalem.jaxrs.lib.exceptionmappers.RequestProcessingExceptionMapper;
 import com.moodysalem.jaxrs.lib.exceptionmappers.WebApplicationExceptionMapper;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -36,7 +36,7 @@ public abstract class BaseApplication extends ResourceConfig {
 
         // force HTTPS behind ELB
         if (forceHttps()) {
-            register(HTTPSFilter.class);
+            register(ElasticLoadBalancerHTTPSFilter.class);
         }
 
         // custom exception handler
