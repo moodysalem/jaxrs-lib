@@ -12,7 +12,10 @@ import javax.persistence.Persistence;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -22,31 +25,7 @@ import java.util.logging.Logger;
  * Also runs migrations against the database when instantiated
  */
 public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
-
-    private String url;
-    private String user;
-    private String password;
-    private String persistenceUnit;
-    private String changelogFile;
-    private String context;
-    private boolean showSql;
-    private boolean validate;
-
-    public JAXRSEntityManagerFactory(String url, String user, String password, String persistenceUnit,
-                                     String changelogFile, boolean showSql, boolean validate, String context,
-                                     Properties additionalProperties) {
-        this.url = url;
-        this.user = user;
-        this.password = password;
-        this.persistenceUnit = persistenceUnit;
-        this.showSql = showSql;
-        this.changelogFile = changelogFile;
-        this.context = context;
-        this.validate = validate;
-        runMigrations();
-        _emf = createEMF(additionalProperties);
-    }
-
+    // STATIC STUFF
     private static final Logger LOG = Logger.getLogger(JAXRSEntityManagerFactory.class.getName());
     private static final String[] DRIVERS = new String[]{
             "com.mysql.jdbc.Driver",
@@ -54,13 +33,6 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
             "oracle.jdbc.driver.OracleDriver",
             "com.microsoft.sqlserver.jdbc.SQLServerDriver"
     };
-
-    private EntityManagerFactory _emf;
-
-    static {
-        // We need to do this only once so that all the JDBC drivers are on the classpath
-        loadDrivers();
-    }
 
     /**
      * Load all the JDBC drivers that are typically used in a hibernate application
@@ -76,10 +48,121 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
         }
     }
 
+    static {
+        // We need to do this only once so that all the JDBC drivers are on the classpath
+        loadDrivers();
+    }
+
+    public static Builder builder(String name) {
+        return new Builder(name);
+    }
+
+    public static class Builder {
+        private String name;
+        private String url;
+        private String user;
+        private String persistenceUnit;
+        private String changelogFile;
+        private boolean showSql;
+        private String context;
+        private Properties additionalProperties;
+        private String password = "";
+
+        public JAXRSEntityManagerFactory build() {
+            return new JAXRSEntityManagerFactory(name, url, user, password, persistenceUnit, changelogFile, showSql,
+                    context, additionalProperties);
+        }
+
+        private Builder(String name) {
+            if (name == null) {
+                throw new NullPointerException();
+            }
+            this.name = name;
+        }
+
+        public Builder withUrl(String url) {
+            this.url = url;
+            return this;
+        }
+
+        public Builder withUser(String user) {
+            this.user = user;
+            return this;
+        }
+
+        public Builder withPersistenceUnit(String persistenceUnit) {
+            this.persistenceUnit = persistenceUnit;
+            return this;
+        }
+
+        public Builder withChangelogFile(String changelogFile) {
+            this.changelogFile = changelogFile;
+            return this;
+        }
+
+        public Builder withShowSql(boolean showSql) {
+            this.showSql = showSql;
+            return this;
+        }
+
+        public Builder withContext(String context) {
+            this.context = context;
+            return this;
+        }
+
+        public Builder withAdditionalProperties(Properties additionalProperties) {
+            this.additionalProperties = additionalProperties;
+            return this;
+        }
+
+        public Builder withPassword(String password) {
+            this.password = password;
+            return this;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getUrl() {
+            return url;
+        }
+
+        public String getUser() {
+            return user;
+        }
+
+        public String getPersistenceUnit() {
+            return persistenceUnit;
+        }
+
+        public String getChangelogFile() {
+            return changelogFile;
+        }
+
+        public boolean isShowSql() {
+            return showSql;
+        }
+
+        public String getContext() {
+            return context;
+        }
+
+        public Properties getAdditionalProperties() {
+            return additionalProperties;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+    }
+
+
     /**
      * Create an entity manager factory which is used to provide entity managers to the requests
      */
-    private EntityManagerFactory createEMF(Properties additionalProperties) {
+    private static EntityManagerFactory createEMF(String url, String user, String password, String persistenceUnit, boolean showSql,
+                                                  Properties additionalProperties) {
         Properties properties = new Properties();
         properties.setProperty("hibernate.connection.url", url);
         properties.setProperty("hibernate.connection.user", user);
@@ -89,10 +172,6 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
         if (showSql) {
             properties.setProperty("hibernate.show_sql", "true");
             properties.setProperty("hibernate.format_sql", "true");
-        }
-
-        if (validate) {
-            properties.setProperty("hibernate.hbm2ddl.auto", "validate");
         }
 
         // database connection pool
@@ -109,11 +188,22 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
 
         return Persistence.createEntityManagerFactory(persistenceUnit, properties);
     }
+    // END STATIC STUFF
+
+    private EntityManagerFactory _emf;
+    private String name;
+
+    public JAXRSEntityManagerFactory(String name, String url, String user, String password, String persistenceUnit,
+                                     String changelogFile, boolean showSql, String context,
+                                     Properties additionalProperties) {
+        runMigrations(changelogFile, url, user, password, context);
+        _emf = createEMF(url, user, password, persistenceUnit, showSql, additionalProperties);
+    }
 
     /**
      * Run the migrations in the changelog associated with this entity manager
      */
-    private void runMigrations() {
+    private void runMigrations(String changelogFile, String url, String user, String password, String context) {
         if (changelogFile != null) {
             try (Connection c = DriverManager.getConnection(url, user, password)) {
                 LOG.info("Running Migrations");
@@ -130,15 +220,24 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
         }
     }
 
+    // used for counting the entity managers so we can make sure they're all closed
+    private final AtomicLong COUNTER = new AtomicLong(0);
+    private final Map<EntityManager, Long> ENTITY_MANAGER_LONG_MAP = new HashMap<>();
+
     @Override
     public EntityManager provide() {
-        LOG.fine("Providing an entity manager");
-        return _emf.createEntityManager();
+        final long next = COUNTER.incrementAndGet();
+        LOG.fine(String.format("%s: Providing an entity manager: %s", name, next));
+        EntityManager toReturn = _emf.createEntityManager();
+        ENTITY_MANAGER_LONG_MAP.put(toReturn, next);
+        return toReturn;
     }
 
     @Override
     public void dispose(EntityManager entityManager) {
-        LOG.fine("Disposing an entity manager");
+        final Long next = ENTITY_MANAGER_LONG_MAP.get(entityManager);
+        ENTITY_MANAGER_LONG_MAP.remove(entityManager);
+        LOG.fine(String.format("%s: Disposing an entity manager: #%s", name, next));
         entityManager.close();
     }
 }

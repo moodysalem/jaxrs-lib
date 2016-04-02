@@ -215,8 +215,13 @@ public class EntityResourceTest extends BaseTest {
         rc.register(new AbstractBinder() {
             @Override
             protected void configure() {
-                bindFactory(new JAXRSEntityManagerFactory("jdbc:h2:mem:tester;DB_CLOSE_DELAY=-1", "sa", "sa", "mpu",
-                        "ertest/schema.xml", true, true, null, null))
+                bindFactory(JAXRSEntityManagerFactory.builder("my em")
+                        .withUrl("jdbc:h2:mem:tester;DB_CLOSE_DELAY=-1")
+                        .withUser("sa").withPassword("sa")
+                        .withPersistenceUnit("mpu")
+                        .withChangelogFile("ertest/schema.xml")
+                        .withShowSql(true)
+                        .build())
                         .to(EntityManager.class).in(RequestScoped.class).proxy(true);
             }
         });
