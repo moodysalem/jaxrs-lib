@@ -13,7 +13,7 @@ import java.util.UUID;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class BaseEntity {
     @Id
-    @Column(name = "id", updatable = false, nullable = false)
+    @Column(name = "id", updatable = false, nullable = false, length = 36, columnDefinition = "CHAR(36)")
     @Type(type = "org.hibernate.type.UUIDCharType")
     private UUID id;
 

@@ -216,7 +216,7 @@ public class EntityResourceTest extends BaseTest {
             @Override
             protected void configure() {
                 bindFactory(new JAXRSEntityManagerFactory("jdbc:h2:mem:tester;DB_CLOSE_DELAY=-1", "sa", "sa", "mpu",
-                        "ertest/schema.xml", true, false, null, null))
+                        "ertest/schema.xml", true, true, null, null))
                         .to(EntityManager.class).in(RequestScoped.class).proxy(true);
             }
         });
