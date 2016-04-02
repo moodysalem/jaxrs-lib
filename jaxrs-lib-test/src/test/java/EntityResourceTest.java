@@ -46,7 +46,7 @@ public class EntityResourceTest extends BaseTest {
         @Column(name = "string")
         @ElementCollection
         @CollectionTable(name = "EntityStrings", joinColumns = {
-            @JoinColumn(name = "entityId")
+                @JoinColumn(name = "entityId")
         })
         private Set<String> strings;
 
@@ -216,8 +216,8 @@ public class EntityResourceTest extends BaseTest {
             @Override
             protected void configure() {
                 bindFactory(new JAXRSEntityManagerFactory("jdbc:h2:mem:tester;DB_CLOSE_DELAY=-1", "sa", "sa", "mpu",
-                    "ertest/schema.xml", true, null, null))
-                    .to(EntityManager.class).in(RequestScoped.class).proxy(true);
+                        "ertest/schema.xml", true, false, null, null))
+                        .to(EntityManager.class).in(RequestScoped.class).proxy(true);
             }
         });
         // register the resource
@@ -294,7 +294,7 @@ public class EntityResourceTest extends BaseTest {
         assert emptyName.getStatus() != 200;
 
         Response r = wt.queryParam(COUNT, 40).queryParam(START, 20)
-            .request().get();
+                .request().get();
         List<MyEntity> list = r.readEntity(new GenericType<List<MyEntity>>() {
         });
         assertTrue(list.size() == 40);
@@ -305,13 +305,13 @@ public class EntityResourceTest extends BaseTest {
 
         // do a big request that exceeds the max count
         Response bigRequest = wt.queryParam(COUNT, 1000).queryParam(START, 20)
-            .request().get();
+                .request().get();
         assertTrue(bigRequest.getHeaderString(X_COUNT).equals("500"));
         assertTrue(bigRequest.getHeaderString(X_START).equals("20"));
 
         // when count isn't specified, make sure the max page size is enforced
         Response noCount = wt.queryParam(START, 20)
-            .request().get();
+                .request().get();
         assertTrue(noCount.getHeaderString(X_COUNT).equals("500"));
         assertTrue(noCount.getHeaderString(X_START).equals("20"));
 
@@ -320,8 +320,8 @@ public class EntityResourceTest extends BaseTest {
         assertTrue(del.getStatus() == 204);
 
         List<MyEntity> afterdelete = wt.request().get()
-            .readEntity(new GenericType<List<MyEntity>>() {
-            });
+                .readEntity(new GenericType<List<MyEntity>>() {
+                });
         assertTrue(afterdelete.size() == 0);
     }
 

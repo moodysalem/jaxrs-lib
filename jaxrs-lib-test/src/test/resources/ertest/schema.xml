@@ -5,7 +5,7 @@
 
     <changeSet id="create test table" author="moody.salem">
         <createTable tableName="MyEntity">
-            <column name="id" type="UUID">
+            <column name="id" type="CHAR(36)">
                 <constraints nullable="false" primaryKey="true"/>
             </column>
             <column name="created" type="TIMESTAMP" defaultValue="${now}">
@@ -25,7 +25,7 @@
 
     <changeSet id="List table" author="moody.salem">
         <createTable tableName="EntityStrings">
-            <column name="entityId" type="UUID">
+            <column name="entityId" type="CHAR(36)">
                 <constraints nullable="false"/>
             </column>
             <column name="string" type="VARCHAR(191)">

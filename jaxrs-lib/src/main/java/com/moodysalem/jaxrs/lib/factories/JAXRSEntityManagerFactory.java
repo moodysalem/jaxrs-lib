@@ -30,9 +30,10 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
     private String changelogFile;
     private String context;
     private boolean showSql;
+    private boolean validate;
 
     public JAXRSEntityManagerFactory(String url, String user, String password, String persistenceUnit,
-                                     String changelogFile, boolean showSql, String context, Properties additionalProperties) {
+                                     String changelogFile, boolean showSql, boolean validate, String context, Properties additionalProperties) {
         this.url = url;
         this.user = user;
         this.password = password;
@@ -40,6 +41,7 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
         this.showSql = showSql;
         this.changelogFile = changelogFile;
         this.context = context;
+        this.validate = validate;
         runMigrations();
         _emf = createEMF(additionalProperties);
     }
@@ -82,11 +84,14 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
         properties.setProperty("hibernate.connection.user", user);
         properties.setProperty("hibernate.connection.password", password);
         properties.setProperty("hibernate.connection.useUnicode", "true");
-        properties.setProperty("hibernate.hbm2ddl.auto", "validate");
 
         if (showSql) {
             properties.setProperty("hibernate.show_sql", "true");
             properties.setProperty("hibernate.format_sql", "true");
+        }
+
+        if (validate) {
+            properties.setProperty("hibernate.hbm2ddl.auto", "validate");
         }
 
         // database connection pool
