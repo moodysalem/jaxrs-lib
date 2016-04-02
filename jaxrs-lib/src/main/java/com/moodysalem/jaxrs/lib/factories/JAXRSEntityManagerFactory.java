@@ -33,7 +33,8 @@ public class JAXRSEntityManagerFactory implements Factory<EntityManager> {
     private boolean validate;
 
     public JAXRSEntityManagerFactory(String url, String user, String password, String persistenceUnit,
-                                     String changelogFile, boolean showSql, boolean validate, String context, Properties additionalProperties) {
+                                     String changelogFile, boolean showSql, boolean validate, String context,
+                                     Properties additionalProperties) {
         this.url = url;
         this.user = user;
         this.password = password;
