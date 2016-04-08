@@ -64,12 +64,6 @@
       <artifactId>slf4j-log4j12</artifactId>
     </dependency>
 
-    <!-- email -->
-    <dependency>
-      <groupId>javax.mail</groupId>
-      <artifactId>mail</artifactId>
-    </dependency>
-
     <!-- for localdate use in hibernate  -->
     <dependency>
       <groupId>com.github.marschall</groupId>
@@ -80,6 +74,12 @@
     <dependency>
       <groupId>org.glassfish.jersey.ext</groupId>
       <artifactId>jersey-mvc-freemarker</artifactId>
+    </dependency>
+
+    <!-- generate the metamodel for the base entity -->
+    <dependency>
+      <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-jpamodelgen</artifactId>
     </dependency>
   </dependencies>
 
