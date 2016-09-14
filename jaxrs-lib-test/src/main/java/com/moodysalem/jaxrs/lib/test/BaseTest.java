@@ -1,5 +1,6 @@
 package com.moodysalem.jaxrs.lib.test;
 
+import com.moodysalem.jaxrs.lib.BaseApplication;
 import com.moodysalem.jaxrs.lib.contextresolvers.ObjectMapperContextResolver;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -33,9 +34,10 @@ public abstract class BaseTest extends JerseyTestNg.ContainerPerClassTest {
 
         toDeploy.property(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, "true");
 
-        toDeploy.register(JacksonFeature.class);
-
-        EncodingFilter.enableFor(toDeploy, GZipEncoder.class);
+        if (!(toDeploy instanceof BaseApplication)) {
+            toDeploy.register(JacksonFeature.class);
+            EncodingFilter.enableFor(toDeploy, GZipEncoder.class);
+        }
 
         return ServletDeploymentContext.forServlet(new ServletContainer(toDeploy)).build();
     }
