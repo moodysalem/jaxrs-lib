@@ -4,8 +4,6 @@ import com.moodysalem.hibernate.model.BaseEntity;
 import com.moodysalem.jaxrs.lib.resources.config.ErrorMessageConfig;
 import com.moodysalem.jaxrs.lib.resources.config.PaginationParameterConfiguration;
 import com.moodysalem.jaxrs.lib.resources.config.SortParameterConfiguration;
-import com.sun.istack.internal.NotNull;
-import com.sun.istack.internal.Nullable;
 
 import javax.persistence.EntityManager;
 import javax.persistence.criteria.Predicate;
@@ -70,23 +68,23 @@ abstract class EntityResourceConfig<T extends BaseEntity> {
     public abstract boolean requiresLogin();
 
     // whether the entity can be created
-    public abstract boolean canSave(@Nullable final T oldData, @NotNull final T newData);
+    public abstract boolean canSave(final T oldData, final T newData);
 
     // whether the entity can be deleted
-    public abstract boolean canDelete(@NotNull final T toDelete);
+    public abstract boolean canDelete(final T toDelete);
 
     // perform these actions before persisting the entity
-    public abstract void beforeSave(@Nullable final T oldData, @NotNull final T newData);
+    public abstract void beforeSave(final T oldData, final T newData);
 
     // get a list of query predicates for lists
-    protected abstract void getPredicatesFromRequest(@NotNull final List<Predicate> predicates,
-                                                     @NotNull final Root<T> root);
+    protected abstract void getPredicatesFromRequest(final List<Predicate> predicates,
+                                                     final Root<T> root);
 
     // perform these actions after creating an entity
-    public abstract void afterSave(T entity);
+    public abstract void afterSave(final T entity);
 
     // used to perform transformations before sending back an entity in a response
-    public abstract void beforeSend(T entity);
+    public abstract void beforeSend(final T entity);
 
     protected abstract ContainerRequestContext getContainerRequestContext();
 

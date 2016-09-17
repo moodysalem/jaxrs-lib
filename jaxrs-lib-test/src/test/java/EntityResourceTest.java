@@ -1,8 +1,9 @@
-import com.moodysalem.hibernate.model.BaseEntity;
+import com.moodysalem.hibernate.model.VersionedEntity;
 import com.moodysalem.jaxrs.lib.BaseApplication;
 import com.moodysalem.jaxrs.lib.exceptionmappers.ErrorResponse;
 import com.moodysalem.jaxrs.lib.factories.JAXRSEntityManagerFactory;
 import com.moodysalem.jaxrs.lib.resources.EntityResource;
+import com.moodysalem.jaxrs.lib.resources.config.PaginationParameterConfiguration;
 import com.moodysalem.jaxrs.lib.test.BaseTest;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.glassfish.jersey.process.internal.RequestScoped;
@@ -21,9 +22,7 @@ import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static org.testng.AssertJUnit.assertTrue;
 
@@ -35,10 +34,12 @@ public class EntityResourceTest extends BaseTest {
     public static final String START = "start";
     public static final String COUNT = "count";
     public static final String SORT = "sort";
+    private static final PaginationParameterConfiguration paginationConfig =
+            new PaginationParameterConfiguration(START, COUNT, X_START, X_COUNT, X_TOTAL_COUNT, 500);
 
     @javax.persistence.Entity
     @Table(name = "MyEntity")
-    public static class MyEntity extends BaseEntity {
+    public static class MyEntity extends VersionedEntity {
         @NotBlank
         @Column(name = "hometown", nullable = false, unique = true)
         private String hometown;
@@ -70,6 +71,10 @@ public class EntityResourceTest extends BaseTest {
 
     @Path("myentity")
     public static class MyEntityResource extends EntityResource<MyEntity> {
+        @Override
+        public PaginationParameterConfiguration getPaginationConfiguration() {
+            return paginationConfig;
+        }
 
         @Context
         ContainerRequestContext req;
@@ -87,55 +92,6 @@ public class EntityResourceTest extends BaseTest {
             return em;
         }
 
-        @Override
-        public String getSortQueryParameterName() {
-            return SORT;
-        }
-
-        @Override
-        public String getSortInfoSeparator() {
-            return "\\|";
-        }
-
-        @Override
-        public String getSortPathSeparator() {
-            return "\\.";
-        }
-
-        @Override
-        public int getMaxNumberOfSorts() {
-            return 5;
-        }
-
-        @Override
-        public String getStartQueryParameterName() {
-            return START;
-        }
-
-        @Override
-        public String getCountQueryParameterName() {
-            return COUNT;
-        }
-
-        @Override
-        public Integer getMaxPerPage() {
-            return 500;
-        }
-
-        @Override
-        public String getStartHeader() {
-            return X_START;
-        }
-
-        @Override
-        public String getCountHeader() {
-            return X_COUNT;
-        }
-
-        @Override
-        public String getTotalCountHeader() {
-            return X_TOTAL_COUNT;
-        }
 
         @Override
         public boolean isLoggedIn() {
@@ -153,13 +109,8 @@ public class EntityResourceTest extends BaseTest {
         }
 
         @Override
-        public boolean canCreate(MyEntity entity) {
-            return !"ABC".equals(entity.getHometown());
-        }
-
-        @Override
-        public boolean canEdit(MyEntity entity) {
-            return true;
+        public boolean canSave(MyEntity oldData, MyEntity newData) {
+            return !"ABC".equals(newData.getHometown());
         }
 
         @Override
@@ -168,17 +119,7 @@ public class EntityResourceTest extends BaseTest {
         }
 
         @Override
-        protected void validateEntity(List<String> errors, MyEntity entity) {
-
-        }
-
-        @Override
-        public void beforeCreate(MyEntity entity) {
-
-        }
-
-        @Override
-        public void beforeEdit(MyEntity oldEntity, MyEntity entity) {
+        public void beforeSave(MyEntity oldData, MyEntity newData) {
 
         }
 
@@ -233,40 +174,42 @@ public class EntityResourceTest extends BaseTest {
 
     @Test
     public void testForbiddenPost() {
-        WebTarget wt = target("myentity");
-        MyEntity me = new MyEntity();
+        final WebTarget wt = target("myentity");
+        final MyEntity me = new MyEntity();
         me.setHometown("ABC");
-        Response r = wt.request().post(Entity.json(me));
+        Response r = wt.request().post(Entity.json(Arrays.asList(me)));
         assertTrue(r.getStatus() == 403);
 
-        ErrorResponse error = r.readEntity(ErrorResponse.class);
+        final ErrorResponse error = r.readEntity(ErrorResponse.class);
         assertTrue(error.getStatusCode() == 403);
         assertTrue(error.getErrors().size() == 1);
         assertTrue(error.getNumErrors() == error.getErrors().size());
-        assertTrue(error.getErrors().get(0).getMessage() != null);
+        assertTrue(error.getErrors().iterator().next().getMessage() != null);
     }
 
     @Test
     public void testPut() {
-        WebTarget wt = target("myentity");
+        final WebTarget wt = target("myentity");
         MyEntity me = new MyEntity();
         me.setHometown("Chicago");
         me.setStrings(new HashSet<>());
         me.getStrings().add("hello");
         me.getStrings().add("world");
-        me = wt.request().post(Entity.json(me), MyEntity.class);
+        me = wt.request().post(Entity.json(Arrays.asList(me)), new GenericType<List<MyEntity>>() {
+        }).get(0);
 
         me.setHometown("Austin");
-        me = wt.path(me.getId().toString()).request().put(Entity.json(me), MyEntity.class);
-        assertTrue(me.getVersion() == 1);
+        assertTrue("PUT is no longer supported",
+                wt.path(me.getId().toString()).request().put(Entity.json(Arrays.asList(me))).getStatus() == 405);
     }
 
     @Test
     public void testDelete() {
-        WebTarget wt = target("myentity");
+        final WebTarget wt = target("myentity");
         MyEntity me = new MyEntity();
         me.setHometown("to delete");
-        me = wt.request().post(Entity.json(me), MyEntity.class);
+        me = wt.request().post(Entity.json(Arrays.asList(me)), new GenericType<List<MyEntity>>() {
+        }).get(0);
 
         Response del = wt.path(me.getId().toString()).request().delete();
         assertTrue(del.getStatus() == 204);
@@ -274,48 +217,50 @@ public class EntityResourceTest extends BaseTest {
 
     @Test
     public void testEntityResource() {
-        WebTarget wt = target("myentity");
+        final WebTarget wt = target("myentity");
         assertTrue(wt.request().get().getStatus() == 200);
 
-        int i = 0;
-        while (i < 100) {
-            MyEntity me = new MyEntity();
+        // create a list and fill it with entities
+        List<MyEntity> list = new ArrayList<>(100);
+        for (int i = 0; i < 100; i++) {
+            final MyEntity me = new MyEntity();
             me.setHometown("#" + i);
-            me = wt.request().post(Entity.json(me), MyEntity.class);
-            assertTrue(me.getId() != null && me.getHometown().equals("#" + i));
-            i++;
+            list.add(i, me);
+
         }
+        list = wt.request().post(Entity.json(list), new GenericType<List<MyEntity>>() {
+        });
 
         // unique name
         MyEntity me = new MyEntity();
         me.setHometown("#1");
-        Response constraintViolation = wt.request().post(Entity.json(me));
+        Response constraintViolation = wt.request().post(Entity.json(Arrays.asList(me)));
         assert constraintViolation.getStatus() != 200;
 
         // empty name
         MyEntity me2 = new MyEntity();
         me.setHometown("   ");
-        Response emptyName = wt.request().post(Entity.json(me2));
+        Response emptyName = wt.request().post(Entity.json(Arrays.asList(me2)));
         assert emptyName.getStatus() != 200;
 
         Response r = wt.queryParam(COUNT, 40).queryParam(START, 20)
                 .request().get();
-        List<MyEntity> list = r.readEntity(new GenericType<List<MyEntity>>() {
+        final List<MyEntity> get = r.readEntity(new GenericType<List<MyEntity>>() {
         });
-        assertTrue(list.size() == 40);
+        assertTrue(get.size() == 40);
         assertTrue(r.getStatus() == 200);
         assertTrue(r.getHeaderString(X_TOTAL_COUNT).equals("100"));
         assertTrue(r.getHeaderString(X_START).equals("20"));
         assertTrue(r.getHeaderString(X_COUNT).equals("40"));
 
         // do a big request that exceeds the max count
-        Response bigRequest = wt.queryParam(COUNT, 1000).queryParam(START, 20)
+        final Response bigRequest = wt.queryParam(COUNT, 1000).queryParam(START, 20)
                 .request().get();
         assertTrue(bigRequest.getHeaderString(X_COUNT).equals("500"));
         assertTrue(bigRequest.getHeaderString(X_START).equals("20"));
 
         // when count isn't specified, make sure the max page size is enforced
-        Response noCount = wt.queryParam(START, 20)
+        final Response noCount = wt.queryParam(START, 20)
                 .request().get();
         assertTrue(noCount.getHeaderString(X_COUNT).equals("500"));
         assertTrue(noCount.getHeaderString(X_START).equals("20"));

@@ -1,7 +1,7 @@
 package com.moodysalem.jaxrs.lib.resources.config;
 
 public class SortParameterConfiguration {
-    public static SortParameterConfiguration DEFAULT = new SortParameterConfiguration("sort", "|", ".", (short) 3);
+    public static SortParameterConfiguration DEFAULT = new SortParameterConfiguration("sort", "\\|", "\\.", (short) 3);
 
     private final String queryParameterName, sortInfoSeparator, sortPathSeparator;
     private final short maxSorts;

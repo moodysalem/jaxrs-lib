@@ -8,10 +8,10 @@
             <column name="id" type="CHAR(36)">
                 <constraints nullable="false" primaryKey="true"/>
             </column>
-            <column name="created" type="TIMESTAMP" defaultValue="${now}">
+            <column name="created" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
-            <column name="updated" type="TIMESTAMP" defaultValue="${now}">
+            <column name="updated" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
             <column name="version" type="BIGINT" defaultValue="0">

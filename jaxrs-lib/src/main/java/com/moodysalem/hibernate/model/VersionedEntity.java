@@ -13,12 +13,10 @@ public class VersionedEntity extends BaseEntity {
 
     @JsonIgnore
     @Column(name = "created", updatable = false, nullable = false)
-    @Temporal(TemporalType.TIMESTAMP)
     private Long created;
 
     @JsonIgnore
     @Column(name = "updated", nullable = false)
-    @Temporal(TemporalType.TIMESTAMP)
     private Long updated;
 
     public long getVersion() {

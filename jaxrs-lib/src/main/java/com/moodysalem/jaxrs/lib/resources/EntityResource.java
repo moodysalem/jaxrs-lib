@@ -5,7 +5,6 @@ import com.moodysalem.hibernate.model.BaseEntity_;
 import com.moodysalem.jaxrs.lib.exceptions.RequestProcessingException;
 import com.moodysalem.jaxrs.lib.resources.config.PaginationParameterConfiguration;
 import com.moodysalem.jaxrs.lib.resources.config.SortParameterConfiguration;
-import com.sun.istack.internal.NotNull;
 import org.hibernate.exception.ConstraintViolationException;
 
 import javax.persistence.EntityManager;
@@ -21,6 +20,7 @@ import javax.ws.rs.core.Response;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -119,22 +119,51 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
             }
         }
 
+        // collect all the old entities with the same IDs
+        final Map<UUID, T> oldData = list.stream()
+                .filter(e -> e.getId() != null)
+                .map(id -> getEntityManager().find(getEntityClass(), id))
+                .collect(Collectors.toMap(BaseEntity::getId, Function.identity()));
 
-        return Response.noContent().build();
-    }
+        // verify that the user can save each of the posted entities
+        {
+            final List<String> permissionErrors = new LinkedList<>();
 
-    /**
-     * Create a single entity
-     *
-     * @param entity data to persist
-     * @return a response containing the saved entity
-     */
-    @POST
-    public Response post(final T entity) {
-        if (entity == null) {
-            throw new RequestProcessingException(Response.Status.BAD_REQUEST, "Empty post body");
+            for (int ix = 0; ix < list.size(); ix++) {
+                final T entity = list.get(ix);
+
+                // if there is an ID we need to find it
+                final T old = entity.getId() != null ? oldData.get(entity.getId()) : null;
+
+                if (!canSave(old, entity)) {
+                    permissionErrors.add(entity.getId() == null ?
+                            String.format("Cannot save %s #%s", getEntityName(), ix) :
+                            String.format("Cannot save %s with ID: %s", getEntityName(), entity.getId())
+                    );
+                }
+            }
+
+            if (!permissionErrors.isEmpty()) {
+                throw new RequestProcessingException(Response.Status.FORBIDDEN,
+                        permissionErrors.stream().toArray(String[]::new));
+            }
         }
-        return save(Collections.singletonList(entity));
+
+        final List<T> saved = new LinkedList<>();
+
+        // now save each entity
+        {
+            withinTransaction(() ->
+                    list.forEach(e -> {
+                        beforeSave(e.getId() != null ? oldData.get(e.getId()) : null, e);
+                        final T merged = getEntityManager().merge(e);
+                        saved.add(merged);
+                        afterSave(merged);
+                    })
+            );
+        }
+
+        return Response.ok(saved).build();
     }
 
     /**
@@ -145,7 +174,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      */
     @DELETE
     @Path("{id}")
-    public Response delete(@PathParam("id") UUID id) {
+    public Response delete(@PathParam("id") final UUID id) {
         checkLoggedIn();
 
         final T entity = getEntityWithId(id);
@@ -176,7 +205,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
 
         if (!toDelete.stream().allMatch(this::canDelete)) {
             throw new RequestProcessingException(Response.Status.FORBIDDEN,
-                    "You are not permitted to delete all the entities matching your request.");
+                    getErrorMessageConfig().getUnauthorizedDelete());
         }
 
         withinTransaction(() -> toDelete.forEach(getEntityManager()::remove));
@@ -201,7 +230,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      * @param param name of the query parameter
      * @return list of values assigned to query parameter
      */
-    private List<String> getQueryParameters(String param) {
+    private List<String> getQueryParameters(final String param) {
         return getContainerRequestContext().getUriInfo().getQueryParameters().get(param);
     }
 
@@ -256,7 +285,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      * @param id of the entity to get
      * @return entity of type T with ID id
      */
-    private T getEntityWithId(@NotNull final UUID id) {
+    private T getEntityWithId(final UUID id) {
         final EntityManager em = getEntityManager();
         final CriteriaBuilder cb = em.getCriteriaBuilder();
         final CriteriaQuery<T> cq = cb.createQuery(this.getEntityClass());
@@ -299,7 +328,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      * @param start which entity to start at
      * @return a list of type T from the database
      */
-    private List<T> getListOfEntities(Integer count, int start) {
+    private List<T> getListOfEntities(final Integer count, final int start) {
         if (count != null && count <= 0) {
             return Collections.emptyList();
         }
@@ -338,20 +367,10 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      * @param from the root of the query
      * @return a list of orders
      */
-    private List<Order> getOrderFromRequest(Root<T> from) {
+    private List<Order> getOrderFromRequest(final Root<T> from) {
         final List<Order> orders = new LinkedList<>();
         getOrderFromRequest(from, orders);
         return orders;
-    }
-
-    // throw an error if the object is null
-    private void notNull(Object shouldNotBeNull, String nameOfParameter) {
-        if (shouldNotBeNull == null) {
-            throw new RequestProcessingException(
-                    Response.Status.BAD_REQUEST,
-                    String.format("%1$s should not be null.", nameOfParameter)
-            );
-        }
     }
 
     /**
@@ -360,7 +379,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      * @param from root of the query
      */
     // TODO: refactor sort query parameter parsing
-    private void getOrderFromRequest(Root<T> from, List<Order> orders) {
+    private void getOrderFromRequest(final Root<T> from, final List<Order> orders) {
         final SortParameterConfiguration sortConfig = getSortConfiguration();
         final List<String> sorts = getQueryParameters(Pattern.quote(sortConfig.getQueryParameterName()));
 
@@ -415,7 +434,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      * @param root the root of the query
      * @return a list of predicates to apply to the query
      */
-    private List<Predicate> getPredicatesFromRequest(Root<T> root) {
+    private List<Predicate> getPredicatesFromRequest(final Root<T> root) {
         final List<Predicate> predicates = new LinkedList<>();
         getPredicatesFromRequest(predicates, root);
         return predicates;
@@ -479,7 +498,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      *
      * @param id not found
      */
-    private void idNotFound(@NotNull final UUID id) {
+    private void idNotFound(final UUID id) {
         throw new RequestProcessingException(Response.Status.NOT_FOUND,
                 String.format(getErrorMessageConfig().getIdNotFound(), getEntityName(), id));
     }
@@ -494,7 +513,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      *
      * @param action to perform in transaction
      */
-    private void withinTransaction(DoSomething action) {
+    private void withinTransaction(final DoSomething action) {
         withinTransaction(() -> {
             action.call();
             return null;
@@ -508,7 +527,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      * @param <V>    return type
      * @return return type of callable
      */
-    private <V> V withinTransaction(Callable<V> action) {
+    private <V> V withinTransaction(final Callable<V> action) {
         final EntityTransaction etx = getEntityManager().getTransaction();
         final V result;
 
