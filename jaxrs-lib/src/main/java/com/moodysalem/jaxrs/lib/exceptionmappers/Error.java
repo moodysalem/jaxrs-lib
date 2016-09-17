@@ -1,7 +1,9 @@
 package com.moodysalem.jaxrs.lib.exceptionmappers;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -9,26 +11,17 @@ import java.util.UUID;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Error {
-    private UUID id;
-    private String attribute;
-    private String message;
-
-    public Error() {
-    }
+    private final UUID id;
+    private final String attribute;
+    private final String message;
 
     public Error(String message) {
         this(null, null, message);
     }
 
-    public Error(String attribute, String message) {
-        this(null, attribute, message);
-    }
-
-    public Error(UUID id, String message) {
-        this(id, null, message);
-    }
-
-    public Error(UUID id, String attribute, String message) {
+    public Error(@JsonProperty("id") UUID id,
+                 @JsonProperty("attribute") String attribute,
+                 @JsonProperty("message") String message) {
         this.id = id;
         this.attribute = attribute;
         this.message = message;
@@ -46,15 +39,18 @@ public class Error {
         return message;
     }
 
-    public void setId(UUID id) {
-        this.id = id;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Error error = (Error) o;
+        return Objects.equals(getId(), error.getId()) &&
+                Objects.equals(getAttribute(), error.getAttribute()) &&
+                Objects.equals(getMessage(), error.getMessage());
     }
 
-    public void setAttribute(String attribute) {
-        this.attribute = attribute;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
+    @Override
+    public int hashCode() {
+        return Objects.hash(getId(), getAttribute(), getMessage());
     }
 }

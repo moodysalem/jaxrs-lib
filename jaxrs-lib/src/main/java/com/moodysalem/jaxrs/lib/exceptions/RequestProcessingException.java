@@ -1,31 +1,22 @@
 package com.moodysalem.jaxrs.lib.exceptions;
 
 import com.moodysalem.jaxrs.lib.exceptionmappers.Error;
-import jersey.repackaged.com.google.common.collect.Lists;
 
 import javax.ws.rs.core.Response;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.HashSet;
+import java.util.Set;
 
 public class RequestProcessingException extends RuntimeException {
 
-    private final List<Error> errors = new ArrayList<>();
-    private int statusCode;
+    private final Set<Error> errors = new HashSet<>();
+    private final int statusCode;
 
-    public List<Error> getErrors() {
+    public Set<Error> getErrors() {
         return errors;
     }
 
     public int getStatusCode() {
         return statusCode;
-    }
-
-    private void setStatusCode(Response.Status status) {
-        setStatusCode((status != null) ? status.getStatusCode() : 400);
-    }
-
-    private void setStatusCode(int statusCode) {
-        this.statusCode = statusCode;
     }
 
     private void addError(String error) {
@@ -41,7 +32,7 @@ public class RequestProcessingException extends RuntimeException {
     }
 
     public RequestProcessingException(int statusCode, Error... errors) {
-        setStatusCode(statusCode);
+        this.statusCode = statusCode;
         if (errors != null) {
             for (Error e : errors) {
                 addError(e);
@@ -50,7 +41,7 @@ public class RequestProcessingException extends RuntimeException {
     }
 
     public RequestProcessingException(Response.Status status, Error... errors) {
-        setStatusCode(statusCode);
+        this.statusCode = status != null ? status.getStatusCode() : 400;
         if (errors != null) {
             for (Error e : errors) {
                 addError(e);
@@ -59,7 +50,7 @@ public class RequestProcessingException extends RuntimeException {
     }
 
     public RequestProcessingException(Response.Status status, String... errors) {
-        setStatusCode(status);
+        this.statusCode = status != null ? status.getStatusCode() : 400;
         if (errors != null) {
             for (String e : errors) {
                 addError(e);
@@ -68,7 +59,7 @@ public class RequestProcessingException extends RuntimeException {
     }
 
     public RequestProcessingException(int statusCode, String... errors) {
-        setStatusCode(statusCode);
+        this.statusCode = statusCode;
         if (errors != null) {
             for (String e : errors) {
                 addError(e);

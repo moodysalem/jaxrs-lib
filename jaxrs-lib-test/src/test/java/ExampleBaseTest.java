@@ -68,7 +68,7 @@ public class ExampleBaseTest extends BaseTest {
     public ResourceConfig getResourceConfig() {
         ResourceConfig testConfig = new BaseApplication() {
             @Override
-            public boolean forceHttps() {
+            public boolean forceLoadBalancerHTTPS() {
                 return false;
             }
 

@@ -1,7 +1,11 @@
 package com.moodysalem.jaxrs.lib.resources;
 
 import com.moodysalem.hibernate.model.BaseEntity;
+import com.moodysalem.hibernate.model.BaseEntity_;
 import com.moodysalem.jaxrs.lib.exceptions.RequestProcessingException;
+import com.moodysalem.jaxrs.lib.resources.config.PaginationParameterConfiguration;
+import com.moodysalem.jaxrs.lib.resources.config.SortParameterConfiguration;
+import com.sun.istack.internal.NotNull;
 import org.hibernate.exception.ConstraintViolationException;
 
 import javax.persistence.EntityManager;
@@ -12,14 +16,15 @@ import javax.persistence.criteria.*;
 import javax.validation.ConstraintViolation;
 import javax.ws.rs.*;
 import javax.ws.rs.Path;
-import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * This resource implements a common REST interface for CRUD against a particular
@@ -29,96 +34,36 @@ import java.util.regex.Pattern;
  */
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public abstract class EntityResource<T extends BaseEntity> {
-
+public abstract class EntityResource<T extends BaseEntity> extends EntityResourceConfig<T> {
     private static final Logger LOG = Logger.getLogger(EntityResource.class.getName());
-    private static final String S_WITH_ID_S_NOT_FOUND = "%s with ID %s not found";
 
     /**
-     * Return the Class that this resource manages
+     * Return a list of type T to the client, including headers about pagination
      *
-     * @return class that the resource manages
+     * @return response with entity list and headers corresponding to pagination details
      */
-    public abstract Class<T> getEntityClass();
+    @GET
+    public Response getList() {
+        checkLoggedIn();
 
+        final Integer count = getCount();
+        final int start = getStart();
 
-    protected abstract ContainerRequestContext getContainerRequestContext();
+        // get the entities
+        final List<T> entities = getListOfEntities(count, start);
+        entities.forEach(this::beforeSend);
 
-    protected abstract EntityManager getEntityManager();
+        // count the total number of the results that would've been returned
+        final long totalCount = getTotalCountOfEntities();
 
-    //////////////////////////////CONSTANTS//////////////////////////////////////////
+        final PaginationParameterConfiguration paginationConfig = getPaginationConfiguration();
 
-    // sorting behavior
-    public abstract String getSortQueryParameterName();
-
-    public abstract String getSortInfoSeparator();
-
-    public abstract String getSortPathSeparator();
-
-    public abstract int getMaxNumberOfSorts();
-
-    // paging behavior
-    public abstract String getStartQueryParameterName();
-
-    public abstract String getCountQueryParameterName();
-
-    public abstract Integer getMaxPerPage();
-
-    // name of the header that should indicate the first record returned
-    public abstract String getStartHeader();
-
-    // name of the header that should indicate the count of records returned
-    public abstract String getCountHeader();
-
-    // name of the header that should include the total count of records that fit the criteria
-    public abstract String getTotalCountHeader();
-
-    // whether the user is authenticated
-    public abstract boolean isLoggedIn();
-
-    // whether the resource rqeuires login
-    public abstract boolean requiresLogin();
-
-    // whether the entity can be created
-    public abstract boolean canCreate(T entity);
-
-    // whether the entity can be edited
-    public abstract boolean canEdit(T entity);
-
-    // whether the entity can be deleted
-    public abstract boolean canDelete(T entity);
-
-    // fill errors array with any validation error strings
-    protected abstract void validateEntity(List<String> errors, T entity);
-
-    // perform these actions before persisting the entity
-    public abstract void beforeCreate(T entity);
-
-    // perform these actions before merging the entity changes
-    public abstract void beforeEdit(T oldEntity, T entity);
-
-    // get a list of query predicates for lists
-    protected abstract void getPredicatesFromRequest(List<Predicate> predicates, Root<T> root);
-
-    // perform these actions after creating an entity
-    public abstract void afterCreate(T entity);
-
-    // used to perform transformations before sending back an entity in a response
-    public abstract void beforeSend(T entity);
-
-    // error message templates
-    private static final String NOT_FOUND = "%1$s with ID %2$s not found.";
-    private static final String NOT_AUTHORIZED_TO_CREATE = "Not authorized to create %1$s.";
-    private static final String NOT_AUTHORIZED_TO_EDIT = "Not authorized to edit %1$s with ID %2$s";
-    private static final String NOT_AUTHORIZED_TO_DELETE = "Not authorized to delete %1$s with ID %2$s.";
-    private static final String VERSION_CONFLICT_ERROR = "%1$s with ID %2$s has since been edited.";
-
-    ////////////////////////////////////GET/////////////////////////////////////////
-
-    private void checkLoggedIn() {
-        if (requiresLogin() && !isLoggedIn()) {
-            throw new RequestProcessingException(Response.Status.UNAUTHORIZED, "You must be logged in to access this resource.");
-        }
+        // return the filtered and mapped list of entities
+        return Response.ok(entities)
+                .header(paginationConfig.getStartHeader(), start)
+                .header(paginationConfig.getCountHeader(), count)
+                .header(paginationConfig.getTotalCountHeader(), totalCount)
+                .build();
     }
 
     /**
@@ -129,19 +74,115 @@ public abstract class EntityResource<T extends BaseEntity> {
      */
     @GET
     @Path("{id}")
-    public Response get(@PathParam("id") UUID id) {
+    public Response get(@PathParam("id") final UUID id) {
         checkLoggedIn();
 
-        T entity = getEntityWithId(id);
+        final T entity = getEntityWithId(id);
         if (entity == null) {
-            throw new RequestProcessingException(Response.Status.NOT_FOUND,
-                    String.format(NOT_FOUND, getEntityName(), id));
+            idNotFound(id);
         }
 
         beforeSend(entity);
+
         return Response.ok(entity).build();
     }
 
+    /**
+     * Save a set of updates for some entities
+     *
+     * @param list of updates
+     * @return updated list
+     */
+    @POST
+    public Response save(final List<T> list) {
+        if (list == null || list.isEmpty()) {
+            throw new RequestProcessingException(Response.Status.BAD_REQUEST, "Empty post body");
+        }
+
+        // validate that each ID only shows up once in the POST to prevent strange behavior when saving
+        {
+            final Map<UUID, Long> countById = list.stream()
+                    .filter(be -> be.getId() != null)
+                    .collect(Collectors.groupingBy(BaseEntity::getId, Collectors.counting()));
+
+            final Set<UUID> duplicates = new HashSet<>();
+            for (final UUID id : countById.keySet()) {
+                if (countById.get(id) > 1) {
+                    duplicates.add(id);
+                }
+            }
+
+            if (duplicates.size() > 0) {
+                throw new RequestProcessingException(Response.Status.BAD_REQUEST,
+                        String.format("The following IDs were found more than once in the request body: %s",
+                                duplicates.stream().map(UUID::toString).collect(Collectors.joining(", "))));
+            }
+        }
+
+
+        return Response.noContent().build();
+    }
+
+    /**
+     * Create a single entity
+     *
+     * @param entity data to persist
+     * @return a response containing the saved entity
+     */
+    @POST
+    public Response post(final T entity) {
+        if (entity == null) {
+            throw new RequestProcessingException(Response.Status.BAD_REQUEST, "Empty post body");
+        }
+        return save(Collections.singletonList(entity));
+    }
+
+    /**
+     * Delete a single entity
+     *
+     * @param id of the entity to delete
+     * @return 204 if successful, otherwise error message
+     */
+    @DELETE
+    @Path("{id}")
+    public Response delete(@PathParam("id") UUID id) {
+        checkLoggedIn();
+
+        final T entity = getEntityWithId(id);
+        if (entity == null) {
+            idNotFound(id);
+        }
+
+        if (!canDelete(entity)) {
+            throw new RequestProcessingException(Response.Status.FORBIDDEN,
+                    String.format(getErrorMessageConfig().getUnauthorizedDelete(), getEntityName(), entity.getId()));
+        }
+
+        withinTransaction(() -> getEntityManager().remove(entity));
+
+        return Response.status(Response.Status.NO_CONTENT).build();
+    }
+
+    /**
+     * Delete all the entities matching the query parameters
+     *
+     * @return empty response
+     */
+    @DELETE
+    public Response deleteAll() {
+        checkLoggedIn();
+
+        final List<T> toDelete = getListOfEntities(null, 0);
+
+        if (!toDelete.stream().allMatch(this::canDelete)) {
+            throw new RequestProcessingException(Response.Status.FORBIDDEN,
+                    "You are not permitted to delete all the entities matching your request.");
+        }
+
+        withinTransaction(() -> toDelete.forEach(getEntityManager()::remove));
+
+        return Response.noContent().build();
+    }
 
     /**
      * Helper method to get a single query parameter
@@ -149,9 +190,9 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @param param name of the query parameter
      * @return the value assigned to the query parameter
      */
-    private String getQueryParameter(String param) {
-        List<String> params = getQueryParameters(param);
-        return params != null && params.size() > 0 ? params.get(0) : null;
+    private String getQueryParameter(final String param) {
+        final List<String> params = getQueryParameters(param);
+        return params != null && !params.isEmpty() ? params.get(0) : null;
     }
 
     /**
@@ -170,12 +211,12 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @return an int corresponding to the first record to return
      */
     private int getStart() {
-        String start = getQueryParameter(getStartQueryParameterName());
+        final String start = getQueryParameter(getPaginationConfiguration().getStartQueryParameterName());
         if (start != null) {
             try {
                 return Math.max(Integer.parseInt(start), 0);
             } catch (Exception e) {
-                LOG.log(Level.WARNING, "Invalid start received", e);
+                LOG.log(Level.WARNING, "Invalid start query parameter received", e);
             }
         }
         return 0;
@@ -187,14 +228,15 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @return the # of records, or null if all should be returned
      */
     private Integer getCount() {
-        String countString = getQueryParameter(getCountQueryParameterName());
-        Integer maxCount = getMaxPerPage();
+        final String countString = getQueryParameter(getPaginationConfiguration().getCountQueryParameterName());
+        final Integer maxCount = getPaginationConfiguration().getMaxPerPage();
+
         Integer count = null;
         if (countString != null) {
             try {
                 count = Integer.parseInt(countString);
             } catch (NumberFormatException e) {
-                LOG.fine(String.format("Invalid count passed to GET: %s", countString));
+                LOG.log(Level.WARNING, "Invalid count query parameter received", e);
             }
         }
 
@@ -209,52 +251,25 @@ public abstract class EntityResource<T extends BaseEntity> {
     }
 
     /**
-     * Return a list of type T to the client, including headers about pagination
-     *
-     * @return response with entity list and headers corresponding to pagination details
-     */
-    @GET
-    public Response getList() {
-        checkLoggedIn();
-
-        Integer count = getCount();
-        int start = getStart();
-
-        // get the entities
-        List<T> entities = getListOfEntities(count, start);
-        entities.forEach(this::beforeSend);
-
-        // count the total number of the results that would've been returned
-        long totalCount = getTotalCountOfEntities();
-
-        // return the filtered and mapped list of entities
-        return Response.ok(entities)
-                .header(getStartHeader(), start)
-                .header(getCountHeader(), count)
-                .header(getTotalCountHeader(), totalCount)
-                .build();
-    }
-
-    /**
      * Return the entity with the ID, filtered by the predicates associated with the request
      *
      * @param id of the entity to get
      * @return entity of type T with ID id
      */
-    private T getEntityWithId(UUID id) {
-        EntityManager em = getEntityManager();
-        CriteriaBuilder cb = em.getCriteriaBuilder();
-        CriteriaQuery<T> cq = cb.createQuery(this.getEntityClass());
-        Root<T> from = cq.from(this.getEntityClass());
+    private T getEntityWithId(@NotNull final UUID id) {
+        final EntityManager em = getEntityManager();
+        final CriteriaBuilder cb = em.getCriteriaBuilder();
+        final CriteriaQuery<T> cq = cb.createQuery(this.getEntityClass());
+        final Root<T> from = cq.from(this.getEntityClass());
 
-        List<Predicate> predicates = getPredicatesFromRequest(from);
+        final Predicate[] predicates = getPredicatesFromRequest(from).stream().toArray(Predicate[]::new);
 
-        predicates.add(cb.equal(from.get("id"), id));
-
-        Predicate[] pArray = new Predicate[predicates.size()];
-        predicates.toArray(pArray);
-
-        List<T> entity = em.createQuery(cq.select(from).where(pArray)).getResultList();
+        final List<T> entity = em.createQuery(cq.select(from)
+                .where(
+                        cb.equal(from.get(BaseEntity_.id), id),
+                        cb.and(predicates)
+                )
+        ).getResultList();
 
         return (entity.size() == 1 ? entity.get(0) : null);
     }
@@ -265,16 +280,14 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @return the total count of entities that match the predicates
      */
     private long getTotalCountOfEntities() {
-        EntityManager em = getEntityManager();
-        CriteriaBuilder cb = em.getCriteriaBuilder();
-        CriteriaQuery<Long> cq = cb.createQuery(Long.class);
-        Root<T> root = cq.from(this.getEntityClass());
+        final EntityManager em = getEntityManager();
+        final CriteriaBuilder cb = em.getCriteriaBuilder();
+        final CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+        final Root<T> root = cq.from(this.getEntityClass());
 
-        List<Predicate> predicates = getPredicatesFromRequest(root);
-        Predicate[] pArray = new Predicate[predicates.size()];
-        predicates.toArray(pArray);
+        final Predicate[] predicates = getPredicatesFromRequest(root).stream().toArray(Predicate[]::new);
 
-        CriteriaQuery<Long> countQuery = cq.select(cb.count(root)).where(pArray);
+        final CriteriaQuery<Long> countQuery = cq.select(cb.count(root)).where(predicates);
 
         return em.createQuery(countQuery).getSingleResult();
     }
@@ -291,30 +304,26 @@ public abstract class EntityResource<T extends BaseEntity> {
             return Collections.emptyList();
         }
 
-        EntityManager em = getEntityManager();
-        CriteriaBuilder cb = em.getCriteriaBuilder();
+        final EntityManager em = getEntityManager();
+        final CriteriaBuilder cb = em.getCriteriaBuilder();
 
-        CriteriaQuery<T> cq = cb.createQuery(this.getEntityClass());
-        Root<T> from = cq.from(this.getEntityClass());
-        cq.select(from);
+        final CriteriaQuery<T> cq = cb.createQuery(this.getEntityClass());
+        final Root<T> from = cq.from(this.getEntityClass());
+        cq.select(from).distinct(true);
 
-        List<Predicate> predicates = getPredicatesFromRequest(from);
-        if (predicates.size() > 0) {
-            Predicate[] pArray = new Predicate[predicates.size()];
-            predicates.toArray(pArray);
-            cq.where(pArray);
+        final Predicate[] predicates = getPredicatesFromRequest(from).stream().toArray(Predicate[]::new);
+
+        if (predicates.length > 0) {
+            cq.where(predicates);
         }
 
         // parse the request to return the orders that should be applied
-        List<Order> orderBys = getOrderFromRequest(from);
-        if (orderBys.size() > 0) {
-            Order[] oArray = new Order[orderBys.size()];
-            orderBys.toArray(oArray);
+        final Order[] orderBys = getOrderFromRequest(from).stream().toArray(Order[]::new);
+        if (orderBys.length > 0) {
             cq.orderBy(orderBys);
         }
 
-        TypedQuery<T> query = em.createQuery(cq)
-                .setFirstResult(start);
+        final TypedQuery<T> query = em.createQuery(cq).setFirstResult(start);
 
         if (count != null) {
             query.setMaxResults(count);
@@ -330,7 +339,7 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @return a list of orders
      */
     private List<Order> getOrderFromRequest(Root<T> from) {
-        List<Order> orders = new ArrayList<>();
+        final List<Order> orders = new LinkedList<>();
         getOrderFromRequest(from, orders);
         return orders;
     }
@@ -350,29 +359,37 @@ public abstract class EntityResource<T extends BaseEntity> {
      *
      * @param from root of the query
      */
+    // TODO: refactor sort query parameter parsing
     private void getOrderFromRequest(Root<T> from, List<Order> orders) {
-        List<String> sorts = getQueryParameters(Pattern.quote(getSortQueryParameterName()));
-        if (sorts == null || sorts.size() == 0) {
+        final SortParameterConfiguration sortConfig = getSortConfiguration();
+        final List<String> sorts = getQueryParameters(Pattern.quote(sortConfig.getQueryParameterName()));
+
+        if (sorts == null || sorts.isEmpty()) {
             return;
         }
 
-        CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+        final CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
 
-        for (String sortOrder : sorts) {
-            String[] pieces = sortOrder.split(Pattern.quote(getSortInfoSeparator()));
+        for (final String sortOrder : sorts) {
+            if (orders.size() > sortConfig.getMaxSorts()) {
+                return;
+            }
+
+            final String[] pieces = sortOrder.split(Pattern.quote(sortConfig.getSortInfoSeparator()));
             if (pieces.length <= 1) {
                 continue;
             }
 
-            boolean asc = (pieces[0].equals("A"));
+            boolean asc = (pieces[0].equalsIgnoreCase("A"));
 
             javax.persistence.criteria.Path sortBy;
             try {
-                LinkedList<String> sortAttributePieces = new LinkedList<>(Arrays.asList(pieces[1].split(getSortPathSeparator())));
+                final LinkedList<String> sortAttributePieces = new LinkedList<>(Arrays.asList(
+                        pieces[1].split(Pattern.quote(sortConfig.getSortPathSeparator()))));
                 if (sortAttributePieces.size() > 1) {
                     Join j = from.join(sortAttributePieces.pop(), JoinType.LEFT);
                     while (sortAttributePieces.size() > 1) {
-                        String attribute = sortAttributePieces.pop();
+                        final String attribute = sortAttributePieces.pop();
                         j = j.join(attribute, JoinType.LEFT);
                     }
                     sortBy = j.get(sortAttributePieces.get(0));
@@ -380,7 +397,7 @@ public abstract class EntityResource<T extends BaseEntity> {
                     sortBy = from.get(sortAttributePieces.get(0));
                 }
             } catch (IllegalArgumentException e) {
-                LOG.log(Level.WARNING, "Failed to parse sort: " + sortOrder, e);
+                LOG.log(Level.WARNING, "Failed to parse sort", e);
                 continue;
             }
 
@@ -388,9 +405,6 @@ public abstract class EntityResource<T extends BaseEntity> {
                 orders.add(cb.asc(sortBy));
             } else {
                 orders.add(cb.desc(sortBy));
-            }
-            if (orders.size() > getMaxNumberOfSorts()) {
-                break;
             }
         }
     }
@@ -402,58 +416,9 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @return a list of predicates to apply to the query
      */
     private List<Predicate> getPredicatesFromRequest(Root<T> root) {
-        List<Predicate> predicates = new ArrayList<>();
+        final List<Predicate> predicates = new LinkedList<>();
         getPredicatesFromRequest(predicates, root);
         return predicates;
-    }
-
-    ////////////////////////////////////GET/////////////////////////////////////////
-    ///////////////////////////////////POST/////////////////////////////////////////
-
-    /**
-     * Create an entity
-     *
-     * @param entity data to persist
-     * @return a response containing the saved entity
-     */
-    @POST
-    public Response post(T entity) {
-        checkLoggedIn();
-
-        notNull(entity, getEntityName());
-        if (!canCreate(entity)) {
-            throw new RequestProcessingException(Response.Status.FORBIDDEN,
-                    String.format(NOT_AUTHORIZED_TO_CREATE, getEntityName()));
-        }
-        beforeCreate(entity);
-        List<String> errors = validateEntity(entity);
-        if (errors.size() > 0) {
-            String[] errs = new String[errors.size()];
-            errors.toArray(errs);
-            throw new RequestProcessingException(Response.Status.BAD_REQUEST, errs);
-        }
-        boolean needsTx = noTx();
-        try {
-            if (needsTx) {
-                openTransaction();
-            }
-            getEntityManager().persist(entity);
-            if (needsTx) {
-                commit();
-            }
-            afterCreate(entity);
-        } catch (Exception e) {
-            if (needsTx) {
-                rollback();
-            }
-            LOG.log(Level.SEVERE, "Failed to create entity", e);
-            throw new RequestProcessingException(
-                    Response.Status.CONFLICT,
-                    translateExceptionToMessage(e)
-            );
-        }
-
-        return get(entity.getId());
     }
 
     /**
@@ -462,6 +427,7 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @param e exception to translate
      * @return a human readable message from the exception, if recognized
      */
+    // TODO: yank this out - probably a static method for RequestProcessingException from(Exception e)
     private String translateExceptionToMessage(Exception e) {
         if (e == null) {
             return null;
@@ -509,199 +475,66 @@ public abstract class EntityResource<T extends BaseEntity> {
     }
 
     /**
-     * Validate an entity and return a list of validation errors
+     * Throw an exception indicating the ID was not found
      *
-     * @param entity to validate
-     * @return a list of errors
+     * @param id not found
      */
-    private List<String> validateEntity(T entity) {
-        List<String> errors = new ArrayList<>();
-        validateEntity(errors, entity);
-        return errors;
+    private void idNotFound(@NotNull final UUID id) {
+        throw new RequestProcessingException(Response.Status.NOT_FOUND,
+                String.format(getErrorMessageConfig().getIdNotFound(), getEntityName(), id));
     }
 
-    ///////////////////////////////////POST/////////////////////////////////////////
-    ///////////////////////////////////PUT/////////////////////////////////////////
-
-
-    /**
-     * Save an entity that already exists
-     *
-     * @param id     of the entity to save
-     * @param entity data to merge
-     * @return saved entity
-     */
-    @PUT
-    @Path("{id}")
-    public Response put(@PathParam("id") UUID id, T entity) {
-        checkLoggedIn();
-
-        notNull(entity, getEntityName());
-        T entityToEdit = getEntityWithId(id);
-        // check the entity with this ID truly exists and is visible to the user
-        if (entityToEdit == null) {
-            throw new RequestProcessingException(Response.Status.NOT_FOUND,
-                    String.format(NOT_FOUND, getEntityName(), id));
-        }
-        // check for permission to edit
-        if (!canEdit(entityToEdit)) {
-            throw new RequestProcessingException(Response.Status.FORBIDDEN,
-                    String.format(NOT_AUTHORIZED_TO_EDIT, getEntityName(), id));
-        }
-        // check for version conflicts so we can give a more useful message
-        if (entityToEdit.getVersion() != entity.getVersion()) {
-            throw new RequestProcessingException(Response.Status.CONFLICT,
-                    String.format(VERSION_CONFLICT_ERROR, getEntityName(), id));
-        }
-        // make sure the path param matches the id of the entity they are putting
-        entity.setId(id);
-        beforeEdit(entityToEdit, entity);
-        List<String> errors = validateEntity(entity);
-        if (errors.size() > 0) {
-            String[] errs = new String[errors.size()];
-            errors.toArray(errs);
-            throw new RequestProcessingException(Response.Status.BAD_REQUEST, errs);
-        }
-        boolean needsTx = noTx();
-        try {
-            if (needsTx) {
-                openTransaction();
-            }
-            getEntityManager().merge(entity);
-            if (needsTx) {
-                commit();
-            }
-        } catch (Exception e) {
-            if (needsTx) {
-                rollback();
-            }
-            LOG.log(Level.SEVERE, "Failed to save changes to single entity", e);
-            rollback();
-            throw new RequestProcessingException(
-                    Response.Status.INTERNAL_SERVER_ERROR,
-                    translateExceptionToMessage(e)
-            );
-        }
-
-        return get(id);
-    }
-
-    ///////////////////////////////////PUT/////////////////////////////////////////
-    ///////////////////////////////////DELETE/////////////////////////////////////////
-
-    /**
-     * Delete a single entity
-     *
-     * @param id of the entity to delete
-     * @return 204 if successful, otherwise error message
-     */
-    @DELETE
-    @Path("{id}")
-    public Response delete(@PathParam("id") UUID id) {
-        checkLoggedIn();
-
-        T entity = getEntityWithId(id);
-        if (entity == null) {
-            throw new RequestProcessingException(Response.Status.NOT_FOUND,
-                    String.format(S_WITH_ID_S_NOT_FOUND, getEntityName(), id));
-        }
-
-        if (!canDelete(entity)) {
-            throw new RequestProcessingException(Response.Status.FORBIDDEN,
-                    String.format(NOT_AUTHORIZED_TO_DELETE, getEntityName(), entity.getId()));
-        }
-
-        try {
-            openTransaction();
-            try {
-                deleteEntity(entity);
-            } catch (Exception e) {
-                LOG.log(Level.SEVERE, "failed to delete single entity", e);
-                throw new RequestProcessingException(Response.Status.INTERNAL_SERVER_ERROR,
-                        "Failed to delete resource", translateExceptionToMessage(e));
-            }
-            commit();
-        } catch (Exception e) {
-            rollback();
-            LOG.log(Level.SEVERE, "Failed to delete resource", e);
-            throw new RequestProcessingException(
-                    Response.Status.CONFLICT,
-                    translateExceptionToMessage(e)
-            );
-        }
-
-        return Response.status(Response.Status.NO_CONTENT).build();
-    }
-
-    @DELETE
-    public Response deleteAll() {
-        checkLoggedIn();
-
-        List<T> toDelete = getListOfEntities(null, 0);
-
-        if (!toDelete.stream().allMatch(this::canDelete)) {
-            throw new RequestProcessingException(Response.Status.FORBIDDEN, "You are not permitted to delete all the entities matching your request.");
-        }
-
-        try {
-            openTransaction();
-            toDelete.stream().forEach(this::deleteEntity);
-            commit();
-        } catch (Exception e) {
-            rollback();
-            LOG.log(Level.SEVERE, "Failed to delete resources", e);
-            throw new RequestProcessingException(Response.Status.CONFLICT, "Failed to delete resource",
-                    translateExceptionToMessage(e));
-        }
-
-        return Response.noContent().build();
-    }
-
-    // override this method delete by e.g. setting a field
-    private void deleteEntity(T entityToDelete) {
-        getEntityManager().remove(entityToDelete);
-    }
-
-    ///////////////////////////////////DELETE END/////////////////////////////////////////
-    ////////////////////////////TRANSACTION HELPERS////////////////////////////////////////////////////
-    private EntityTransaction etx;
-
-    public void openTransaction() {
-        if (etx != null) {
-            throw new RequestProcessingException(Response.Status.INTERNAL_SERVER_ERROR, "Transaction was opened twice.");
-        }
-        etx = getEntityManager().getTransaction();
-        etx.begin();
-    }
-
-    public boolean noTx() {
-        return (etx == null || !etx.isActive());
-    }
-
-    public void commit() {
-        if (etx == null) {
-            throw new RequestProcessingException(Response.Status.INTERNAL_SERVER_ERROR, "Transaction was closed while not open.");
-        }
-        getEntityManager().flush();
-        etx.commit();
-        etx = null;
-    }
-
-    public void rollback() {
-        if (etx == null) {
-            return;
-        }
-        etx.rollback();
-        etx = null;
+    // used in withinTransaction
+    private interface DoSomething {
+        void call();
     }
 
     /**
-     * Return the name of the entity class
+     * Overload that does not return anything
      *
-     * @return name of the entity class, used in error messages
+     * @param action to perform in transaction
      */
-    private String getEntityName() {
-        return getEntityClass().getSimpleName();
+    private void withinTransaction(DoSomething action) {
+        withinTransaction(() -> {
+            action.call();
+            return null;
+        });
+    }
+
+    /**
+     * Helper method to open a transaction to contain some process
+     *
+     * @param action something to do
+     * @param <V>    return type
+     * @return return type of callable
+     */
+    private <V> V withinTransaction(Callable<V> action) {
+        final EntityTransaction etx = getEntityManager().getTransaction();
+        final V result;
+
+        try {
+            etx.begin();
+            result = action.call();
+            etx.commit();
+        } catch (Exception e) {
+            throw new RequestProcessingException(Response.Status.INTERNAL_SERVER_ERROR, translateExceptionToMessage(e));
+        } finally {
+            if (etx.isActive()) {
+                etx.rollback();
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Helper method checks logged in
+     */
+    private void checkLoggedIn() {
+        if (requiresLogin() && !isLoggedIn()) {
+            throw new RequestProcessingException(Response.Status.UNAUTHORIZED,
+                    "You must be logged in to access this resource.");
+        }
     }
 }
 

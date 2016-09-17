@@ -4,10 +4,8 @@ import com.moodysalem.jaxrs.lib.BaseApplication;
 import com.moodysalem.jaxrs.lib.contextresolvers.ObjectMapperContextResolver;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.jackson.JacksonFeature;
-import org.glassfish.jersey.message.GZipEncoder;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
-import org.glassfish.jersey.server.filter.EncodingFilter;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.glassfish.jersey.test.DeploymentContext;
 import org.glassfish.jersey.test.JerseyTestNg;
@@ -30,13 +28,12 @@ public abstract class BaseTest extends JerseyTestNg.ContainerPerClassTest {
     protected DeploymentContext configureDeployment() {
         enable(TestProperties.LOG_TRAFFIC);
         enable(TestProperties.DUMP_ENTITY);
-        ResourceConfig toDeploy = getResourceConfig();
+        final ResourceConfig toDeploy = getResourceConfig();
 
         toDeploy.property(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, "true");
 
         if (!(toDeploy instanceof BaseApplication)) {
             toDeploy.register(JacksonFeature.class);
-            EncodingFilter.enableFor(toDeploy, GZipEncoder.class);
         }
 
         return ServletDeploymentContext.forServlet(new ServletContainer(toDeploy)).build();

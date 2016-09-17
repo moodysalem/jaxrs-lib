@@ -18,7 +18,7 @@ public class ElasticLoadBalancerHTTPSFilter implements ContainerRequestFilter {
 
     @Override
     public void filter(ContainerRequestContext containerRequestContext) throws IOException {
-        String proto = containerRequestContext.getHeaderString(PROTO_HEADER);
+        final String proto = containerRequestContext.getHeaderString(PROTO_HEADER);
 
         if (proto != null && !HTTPS.equalsIgnoreCase(proto)) {
             // forward the client to the https version of the site

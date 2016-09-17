@@ -104,7 +104,7 @@ public class TestFilters extends BaseTest {
     public ResourceConfig getResourceConfig() {
         ResourceConfig rc = new BaseApplication() {
             @Override
-            public boolean forceHttps() {
+            public boolean forceLoadBalancerHTTPS() {
                 return true;
             }
 

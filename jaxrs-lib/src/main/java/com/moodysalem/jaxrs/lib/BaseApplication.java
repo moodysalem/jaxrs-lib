@@ -2,10 +2,10 @@ package com.moodysalem.jaxrs.lib;
 
 import com.moodysalem.jaxrs.lib.contextresolvers.ObjectMapperContextResolver;
 import com.moodysalem.jaxrs.lib.converters.JodaTimeParamConverterProvider;
-import com.moodysalem.jaxrs.lib.filters.CORSFilter;
-import com.moodysalem.jaxrs.lib.filters.ElasticLoadBalancerHTTPSFilter;
 import com.moodysalem.jaxrs.lib.exceptionmappers.RequestProcessingExceptionMapper;
 import com.moodysalem.jaxrs.lib.exceptionmappers.WebApplicationExceptionMapper;
+import com.moodysalem.jaxrs.lib.filters.CORSFilter;
+import com.moodysalem.jaxrs.lib.filters.ElasticLoadBalancerHTTPSFilter;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.message.GZipEncoder;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -35,20 +35,20 @@ public abstract class BaseApplication extends ResourceConfig {
         }
 
         // force HTTPS behind ELB
-        if (forceHttps()) {
+        if (forceLoadBalancerHTTPS()) {
             register(ElasticLoadBalancerHTTPSFilter.class);
         }
 
         // custom exception handler
         register(RequestProcessingExceptionMapper.class);
 
-        // map webapplicationexceptions to the appropriate json structure
+        // map WebApplicationExceptions to the appropriate JSON structure
         register(WebApplicationExceptionMapper.class);
 
         EncodingFilter.enableFor(this, GZipEncoder.class);
     }
 
-    public abstract boolean forceHttps();
+    public abstract boolean forceLoadBalancerHTTPS();
 
     public abstract boolean allowCORS();
 }

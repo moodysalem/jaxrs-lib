@@ -4,8 +4,9 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Maps web application exceptions to error responses
@@ -14,11 +15,8 @@ import java.util.List;
 public class WebApplicationExceptionMapper implements ExceptionMapper<WebApplicationException> {
     @Override
     public Response toResponse(WebApplicationException e) {
-        ErrorResponse response = new ErrorResponse();
-        List<Error> errors = new ArrayList<>();
-        errors.add(new Error(e.getMessage()));
-        response.setErrors(errors);
-        response.setStatusCode(e.getResponse().getStatus());
+        final Set<Error> errors = new HashSet<>(Collections.singletonList(new Error(e.getMessage())));
+        final ErrorResponse response = new ErrorResponse(e.getResponse().getStatus(), errors);
 
         return Response.fromResponse(e.getResponse())
                 .entity(response)

@@ -188,7 +188,7 @@ public class EntityResourceTest extends BaseTest {
         }
 
         @Override
-        public void afterCreate(MyEntity entity) {
+        public void afterSave(MyEntity entity) {
 
         }
 
@@ -202,7 +202,7 @@ public class EntityResourceTest extends BaseTest {
     public ResourceConfig getResourceConfig() {
         ResourceConfig rc = new BaseApplication() {
             @Override
-            public boolean forceHttps() {
+            public boolean forceLoadBalancerHTTPS() {
                 return false;
             }
 

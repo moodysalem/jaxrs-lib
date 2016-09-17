@@ -58,9 +58,9 @@ public class CORSFilter implements DynamicFeature {
         @Override
         public void filter(ContainerRequestContext req, ContainerResponseContext resp)
                 throws IOException {
-            MultivaluedMap<String, Object> headers = resp.getHeaders();
+            final MultivaluedMap<String, Object> headers = resp.getHeaders();
 
-            String origin = req.getHeaderString(ORIGIN_HEADER);
+            final String origin = req.getHeaderString(ORIGIN_HEADER);
             // only if origin header is present do we slap on these origin headers
             if (origin != null) {
                 // these are always ok
@@ -69,12 +69,12 @@ public class CORSFilter implements DynamicFeature {
                 headers.putSingle(ACCESS_CONTROL_ALLOW_METHODS, ALL_METHODS);
 
                 // allow all the request headers
-                String requestHeadersAllowed = req.getHeaderString(ACCESS_CONTROL_REQUEST_HEADERS);
+                final String requestHeadersAllowed = req.getHeaderString(ACCESS_CONTROL_REQUEST_HEADERS);
                 if (requestHeadersAllowed != null) {
                     headers.putSingle(ACCESS_CONTROL_ALLOW_HEADERS, requestHeadersAllowed);
                 }
 
-                Set<String> customHeaders = resp.getHeaders().keySet().stream()
+                final Set<String> customHeaders = resp.getHeaders().keySet().stream()
                         .filter((s) -> s != null && s.toUpperCase().startsWith("X-")).collect(Collectors.toSet());
                 if (customHeaders.size() > 0) {
                     headers.putSingle(ACCESS_CONTROL_EXPOSE_HEADERS, customHeaders.stream().collect(Collectors.joining(",")));

@@ -5,8 +5,6 @@ import com.moodysalem.jaxrs.lib.exceptions.RequestProcessingException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Maps a request exception to an error response
@@ -17,10 +15,7 @@ public class RequestProcessingExceptionMapper implements ExceptionMapper<Request
 
     @Override
     public Response toResponse(RequestProcessingException e) {
-        ErrorResponse res = new ErrorResponse();
-
-        res.setErrors(e.getErrors());
-        res.setStatusCode(e.getStatusCode());
+        final ErrorResponse res = new ErrorResponse(e.getStatusCode(), e.getErrors());
 
         return Response.status(e.getStatusCode())
                 .entity(res)
