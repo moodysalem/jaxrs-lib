@@ -109,7 +109,7 @@ public class EntityResourceTest extends BaseTest {
         }
 
         @Override
-        public boolean canSave(MyEntity oldData, MyEntity newData) {
+        public boolean canMerge(MyEntity oldData, MyEntity newData) {
             return !"ABC".equals(newData.getHometown());
         }
 
@@ -119,7 +119,7 @@ public class EntityResourceTest extends BaseTest {
         }
 
         @Override
-        public void beforeSave(MyEntity oldData, MyEntity newData) {
+        public void beforeMerge(MyEntity oldData, MyEntity newData) {
 
         }
 
@@ -129,12 +129,12 @@ public class EntityResourceTest extends BaseTest {
         }
 
         @Override
-        public void afterSave(MyEntity entity) {
+        public void beforeSend(List<MyEntity> entity) {
 
         }
 
         @Override
-        public void beforeSend(MyEntity entity) {
+        public void afterMerge(MyEntity entity) {
 
         }
     }

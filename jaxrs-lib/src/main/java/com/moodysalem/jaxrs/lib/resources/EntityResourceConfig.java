@@ -1,7 +1,6 @@
 package com.moodysalem.jaxrs.lib.resources;
 
 import com.moodysalem.hibernate.model.BaseEntity;
-import com.moodysalem.jaxrs.lib.resources.config.ErrorMessageConfig;
 import com.moodysalem.jaxrs.lib.resources.config.PaginationParameterConfiguration;
 import com.moodysalem.jaxrs.lib.resources.config.SortParameterConfiguration;
 
@@ -52,39 +51,29 @@ abstract class EntityResourceConfig<T extends BaseEntity> {
         return PaginationParameterConfiguration.DEFAULT;
     }
 
-    /**
-     * Return the error message config object that contains the templates of the error messages
-     *
-     * @return default error message config
-     */
-    public ErrorMessageConfig getErrorMessageConfig() {
-        return ErrorMessageConfig.DEFAULT;
-    }
-
     // whether the user is authenticated
     public abstract boolean isLoggedIn();
 
-    // whether the resource rqeuires login
+    // whether the resource requires login
     public abstract boolean requiresLogin();
 
     // whether the entity can be created
-    public abstract boolean canSave(final T oldData, final T newData);
+    public abstract boolean canMerge(final T oldData, final T newData);
+
+    // perform these actions before persisting the entity
+    public abstract void beforeMerge(final T oldData, final T newData);
+
+    // perform these actions after creating an entity
+    public abstract void afterMerge(final T entity);
 
     // whether the entity can be deleted
     public abstract boolean canDelete(final T toDelete);
 
-    // perform these actions before persisting the entity
-    public abstract void beforeSave(final T oldData, final T newData);
-
-    // get a list of query predicates for lists
-    protected abstract void getPredicatesFromRequest(final List<Predicate> predicates,
-                                                     final Root<T> root);
-
-    // perform these actions after creating an entity
-    public abstract void afterSave(final T entity);
+    // getSingle a list of query predicates for lists
+    protected abstract void getPredicatesFromRequest(final List<Predicate> predicates, final Root<T> root);
 
     // used to perform transformations before sending back an entity in a response
-    public abstract void beforeSend(final T entity);
+    public abstract void beforeSend(final List<T> entity);
 
     protected abstract ContainerRequestContext getContainerRequestContext();
 

@@ -5,26 +5,23 @@ import com.moodysalem.hibernate.model.BaseEntity_;
 import com.moodysalem.jaxrs.lib.exceptions.RequestProcessingException;
 import com.moodysalem.jaxrs.lib.resources.config.PaginationParameterConfiguration;
 import com.moodysalem.jaxrs.lib.resources.config.SortParameterConfiguration;
-import org.hibernate.exception.ConstraintViolationException;
+import com.moodysalem.jaxrs.lib.resources.util.SortInfo;
 
 import javax.persistence.EntityManager;
-import javax.persistence.EntityTransaction;
-import javax.persistence.PersistenceException;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.*;
-import javax.validation.ConstraintViolation;
 import javax.ws.rs.*;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.sql.SQLException;
 import java.util.*;
-import java.util.concurrent.Callable;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static com.moodysalem.jaxrs.lib.resources.util.TXHelper.withinTransaction;
+import static java.lang.String.format;
 
 /**
  * This resource implements a common REST interface for CRUD against a particular
@@ -49,9 +46,9 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
         final Integer count = getCount();
         final int start = getStart();
 
-        // get the entities
+        // getSingle the entities
         final List<T> entities = getListOfEntities(count, start);
-        entities.forEach(this::beforeSend);
+        beforeSend(entities);
 
         // count the total number of the results that would've been returned
         final long totalCount = getTotalCountOfEntities();
@@ -74,7 +71,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      */
     @GET
     @Path("{id}")
-    public Response get(@PathParam("id") final UUID id) {
+    public Response getSingle(@PathParam("id") final UUID id) {
         checkLoggedIn();
 
         final T entity = getEntityWithId(id);
@@ -82,7 +79,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
             idNotFound(id);
         }
 
-        beforeSend(entity);
+        beforeSend(Collections.singletonList(entity));
 
         return Response.ok(entity).build();
     }
@@ -101,25 +98,25 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
 
         // validate that each ID only shows up once in the POST to prevent strange behavior when saving
         {
+            // count the number of times each ID occurs
             final Map<UUID, Long> countById = list.stream()
                     .filter(be -> be.getId() != null)
                     .collect(Collectors.groupingBy(BaseEntity::getId, Collectors.counting()));
 
-            final Set<UUID> duplicates = new HashSet<>();
-            for (final UUID id : countById.keySet()) {
-                if (countById.get(id) > 1) {
-                    duplicates.add(id);
-                }
-            }
+            // return all the IDs that occur more than once
+            final Set<UUID> duplicates = countById.keySet()
+                    .stream()
+                    .filter(id -> countById.get(id) > 1)
+                    .collect(Collectors.toSet());
 
             if (duplicates.size() > 0) {
                 throw new RequestProcessingException(Response.Status.BAD_REQUEST,
-                        String.format("The following IDs were found more than once in the request body: %s",
+                        format("The following IDs were found more than once in the request body: %s",
                                 duplicates.stream().map(UUID::toString).collect(Collectors.joining(", "))));
             }
         }
 
-        // collect all the old entities with the same IDs
+        // collect all the old entities by ID
         final Map<UUID, T> oldData = list.stream()
                 .filter(e -> e.getId() != null)
                 .map(id -> getEntityManager().find(getEntityClass(), id))
@@ -135,10 +132,11 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
                 // if there is an ID we need to find it
                 final T old = entity.getId() != null ? oldData.get(entity.getId()) : null;
 
-                if (!canSave(old, entity)) {
-                    permissionErrors.add(entity.getId() == null ?
-                            String.format("Cannot save %s #%s", getEntityName(), ix) :
-                            String.format("Cannot save %s with ID: %s", getEntityName(), entity.getId())
+                if (!canMerge(old, entity)) {
+                    permissionErrors.add(
+                            entity.getId() == null ?
+                                    format("Cannot save %s #%s", getEntityName(), ix) :
+                                    format("Cannot save %s with ID: %s", getEntityName(), entity.getId())
                     );
                 }
             }
@@ -149,19 +147,26 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
             }
         }
 
+        // now start saving the entities
         final List<T> saved = new LinkedList<>();
 
         // now save each entity
         {
-            withinTransaction(() ->
-                    list.forEach(e -> {
-                        beforeSave(e.getId() != null ? oldData.get(e.getId()) : null, e);
-                        final T merged = getEntityManager().merge(e);
-                        saved.add(merged);
-                        afterSave(merged);
-                    })
-            );
+            try {
+                withinTransaction(getEntityManager(), () ->
+                        list.forEach(e -> {
+                            beforeMerge(e.getId() != null ? oldData.get(e.getId()) : null, e);
+                            final T merged = getEntityManager().merge(e);
+                            saved.add(merged);
+                            afterMerge(merged);
+                        })
+                );
+            } catch (Exception e) {
+                throw RequestProcessingException.from(e);
+            }
         }
+
+        beforeSend(saved);
 
         return Response.ok(saved).build();
     }
@@ -184,12 +189,17 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
 
         if (!canDelete(entity)) {
             throw new RequestProcessingException(Response.Status.FORBIDDEN,
-                    String.format(getErrorMessageConfig().getUnauthorizedDelete(), getEntityName(), entity.getId()));
+                    format("Not authorized to delete %s with ID %s",
+                            getEntityName(), entity.getId()));
         }
 
-        withinTransaction(() -> getEntityManager().remove(entity));
+        try {
+            withinTransaction(getEntityManager(), () -> getEntityManager().remove(entity));
+        } catch (Exception e) {
+            throw RequestProcessingException.from(e);
+        }
 
-        return Response.status(Response.Status.NO_CONTENT).build();
+        return Response.noContent().build();
     }
 
     /**
@@ -203,18 +213,27 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
 
         final List<T> toDelete = getListOfEntities(null, 0);
 
-        if (!toDelete.stream().allMatch(this::canDelete)) {
+        final Set<UUID> cannotDelete = toDelete.stream().filter((e) -> !canDelete(e)).map(BaseEntity::getId)
+                .collect(Collectors.toSet());
+
+        if (!cannotDelete.isEmpty()) {
             throw new RequestProcessingException(Response.Status.FORBIDDEN,
-                    getErrorMessageConfig().getUnauthorizedDelete());
+                    format("Not authorized to delete %s with IDs: %s",
+                            getEntityName(),
+                            cannotDelete.stream().map(UUID::toString).collect(Collectors.joining(", "))));
         }
 
-        withinTransaction(() -> toDelete.forEach(getEntityManager()::remove));
+        try {
+            withinTransaction(getEntityManager(), () -> toDelete.forEach(getEntityManager()::remove));
+        } catch (Exception e) {
+            throw RequestProcessingException.from(e);
+        }
 
         return Response.noContent().build();
     }
 
     /**
-     * Helper method to get a single query parameter
+     * Helper method to getSingle a single query parameter
      *
      * @param param name of the query parameter
      * @return the value assigned to the query parameter
@@ -225,7 +244,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
     }
 
     /**
-     * Helper method to get a list of values associated with a query parameter
+     * Helper method to getSingle a list of values associated with a query parameter
      *
      * @param param name of the query parameter
      * @return list of values assigned to query parameter
@@ -282,7 +301,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
     /**
      * Return the entity with the ID, filtered by the predicates associated with the request
      *
-     * @param id of the entity to get
+     * @param id of the entity to getSingle
      * @return entity of type T with ID id
      */
     private T getEntityWithId(final UUID id) {
@@ -324,7 +343,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
     /**
      * Get a list of entities with a maximum size of count, starting at start
      *
-     * @param count max # of entities to get
+     * @param count max # of entities to getSingle
      * @param start which entity to start at
      * @return a list of type T from the database
      */
@@ -381,7 +400,11 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
     // TODO: refactor sort query parameter parsing
     private void getOrderFromRequest(final Root<T> from, final List<Order> orders) {
         final SortParameterConfiguration sortConfig = getSortConfiguration();
-        final List<String> sorts = getQueryParameters(Pattern.quote(sortConfig.getQueryParameterName()));
+        final List<SortInfo> sorts = SortInfo.from(
+                getQueryParameters(sortConfig.getQueryParameterName()),
+                sortConfig.getSortInfoSeparator(),
+                sortConfig.getSortPathSeparator()
+        );
 
         if (sorts == null || sorts.isEmpty()) {
             return;
@@ -389,22 +412,15 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
 
         final CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
 
-        for (final String sortOrder : sorts) {
+        for (final SortInfo sort : sorts) {
             if (orders.size() > sortConfig.getMaxSorts()) {
                 return;
             }
 
-            final String[] pieces = sortOrder.split(Pattern.quote(sortConfig.getSortInfoSeparator()));
-            if (pieces.length <= 1) {
-                continue;
-            }
-
-            boolean asc = (pieces[0].equalsIgnoreCase("A"));
-
             javax.persistence.criteria.Path sortBy;
             try {
-                final LinkedList<String> sortAttributePieces = new LinkedList<>(Arrays.asList(
-                        pieces[1].split(Pattern.quote(sortConfig.getSortPathSeparator()))));
+                final LinkedList<String> sortAttributePieces = new LinkedList<>(Arrays.asList(sort.getPath()));
+
                 if (sortAttributePieces.size() > 1) {
                     Join j = from.join(sortAttributePieces.pop(), JoinType.LEFT);
                     while (sortAttributePieces.size() > 1) {
@@ -415,12 +431,13 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
                 } else {
                     sortBy = from.get(sortAttributePieces.get(0));
                 }
+
             } catch (IllegalArgumentException e) {
                 LOG.log(Level.WARNING, "Failed to parse sort", e);
                 continue;
             }
 
-            if (asc) {
+            if (sort.isAscending()) {
                 orders.add(cb.asc(sortBy));
             } else {
                 orders.add(cb.desc(sortBy));
@@ -429,7 +446,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
     }
 
     /**
-     * Parse the request to get the query parameters to append to the GET requests
+     * Parse the request to getSingle the query parameters to append to the GET requests
      *
      * @param root the root of the query
      * @return a list of predicates to apply to the query
@@ -441,109 +458,13 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
     }
 
     /**
-     * Translates an exception to a human readable message
-     *
-     * @param e exception to translate
-     * @return a human readable message from the exception, if recognized
-     */
-    // TODO: yank this out - probably a static method for RequestProcessingException from(Exception e)
-    private String translateExceptionToMessage(Exception e) {
-        if (e == null) {
-            return null;
-        }
-        String msg = e.getMessage();
-        if (e instanceof PersistenceException) {
-            PersistenceException pe = (PersistenceException) e;
-            if (e.getCause() instanceof ConstraintViolationException) {
-                e = (Exception) pe.getCause();
-            }
-        }
-        if (e instanceof ConstraintViolationException) {
-            ConstraintViolationException cve = (ConstraintViolationException) e;
-            SQLException se = cve.getSQLException();
-            StringBuilder sb = new StringBuilder();
-
-            while (se != null) {
-                if (sb.length() > 0) {
-                    sb.append(", ");
-                }
-                sb.append(se.getMessage());
-                se = se.getNextException();
-            }
-
-            msg = sb.toString();
-        }
-        if (e instanceof javax.validation.ConstraintViolationException) {
-            StringBuilder sb = new StringBuilder();
-
-            javax.validation.ConstraintViolationException cve = (javax.validation.ConstraintViolationException) e;
-            if (cve.getConstraintViolations() != null) {
-                for (ConstraintViolation cv : cve.getConstraintViolations()) {
-                    if (sb.length() > 0) {
-                        sb.append(", ");
-                    }
-                    String prop = cv.getPropertyPath() != null ? cv.getPropertyPath().toString() : getEntityName();
-                    String error = cv.getMessage() != null ? cv.getMessage() : "unknown error";
-                    sb.append(String.format("Invalid %s: %s", prop, error));
-                }
-            }
-
-            msg = sb.toString();
-        }
-        return msg;
-    }
-
-    /**
      * Throw an exception indicating the ID was not found
      *
      * @param id not found
      */
     private void idNotFound(final UUID id) {
         throw new RequestProcessingException(Response.Status.NOT_FOUND,
-                String.format(getErrorMessageConfig().getIdNotFound(), getEntityName(), id));
-    }
-
-    // used in withinTransaction
-    private interface DoSomething {
-        void call();
-    }
-
-    /**
-     * Overload that does not return anything
-     *
-     * @param action to perform in transaction
-     */
-    private void withinTransaction(final DoSomething action) {
-        withinTransaction(() -> {
-            action.call();
-            return null;
-        });
-    }
-
-    /**
-     * Helper method to open a transaction to contain some process
-     *
-     * @param action something to do
-     * @param <V>    return type
-     * @return return type of callable
-     */
-    private <V> V withinTransaction(final Callable<V> action) {
-        final EntityTransaction etx = getEntityManager().getTransaction();
-        final V result;
-
-        try {
-            etx.begin();
-            result = action.call();
-            etx.commit();
-        } catch (Exception e) {
-            throw new RequestProcessingException(Response.Status.INTERNAL_SERVER_ERROR, translateExceptionToMessage(e));
-        } finally {
-            if (etx.isActive()) {
-                etx.rollback();
-            }
-        }
-
-        return result;
+                format("%s with ID %s not found", getEntityName(), id));
     }
 
     /**

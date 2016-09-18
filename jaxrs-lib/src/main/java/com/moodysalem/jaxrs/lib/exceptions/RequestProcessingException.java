@@ -1,12 +1,64 @@
 package com.moodysalem.jaxrs.lib.exceptions;
 
 import com.moodysalem.jaxrs.lib.exceptionmappers.Error;
+import org.hibernate.exception.ConstraintViolationException;
 
+import javax.persistence.PersistenceException;
+import javax.validation.ConstraintViolation;
 import javax.ws.rs.core.Response;
+import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Set;
 
 public class RequestProcessingException extends RuntimeException {
+    public static RequestProcessingException from(Exception e) {
+        if (e == null) {
+            return null;
+        }
+
+        if (e instanceof PersistenceException) {
+            final PersistenceException pe = (PersistenceException) e;
+            return new RequestProcessingException(422, pe.getCause().getMessage());
+        }
+
+        if (e instanceof ConstraintViolationException) {
+            final ConstraintViolationException cve = (ConstraintViolationException) e;
+            final StringBuilder sb = new StringBuilder();
+
+            SQLException se = cve.getSQLException();
+
+            while (se != null) {
+                if (sb.length() > 0) {
+                    sb.append(", ");
+                }
+                sb.append(se.getMessage());
+                se = se.getNextException();
+            }
+
+            return new RequestProcessingException(Response.Status.NOT_ACCEPTABLE, sb.toString());
+        }
+
+        if (e instanceof javax.validation.ConstraintViolationException) {
+            final StringBuilder sb = new StringBuilder();
+
+            final javax.validation.ConstraintViolationException cve = (javax.validation.ConstraintViolationException) e;
+            if (cve.getConstraintViolations() != null) {
+                for (ConstraintViolation cv : cve.getConstraintViolations()) {
+                    if (sb.length() > 0) {
+                        sb.append(", ");
+                    }
+                    final String prop = cv.getPropertyPath() != null ? cv.getPropertyPath().toString() : null;
+                    final String error = cv.getMessage() != null ? cv.getMessage() : "unknown error";
+                    sb.append(error);
+                }
+            }
+
+            return new RequestProcessingException(422, "Unprocessable entity");
+        }
+
+        return new RequestProcessingException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+    }
+
 
     private final Set<Error> errors = new HashSet<>();
     private final int statusCode;
