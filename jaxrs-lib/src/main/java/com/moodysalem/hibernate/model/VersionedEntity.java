@@ -1,7 +1,5 @@
 package com.moodysalem.hibernate.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import javax.persistence.*;
 import java.util.Date;
 
@@ -11,11 +9,9 @@ public class VersionedEntity extends BaseEntity {
     @Column(name = "version", nullable = false)
     private long version;
 
-    @JsonIgnore
     @Column(name = "created", updatable = false, nullable = false)
     private Long created;
 
-    @JsonIgnore
     @Column(name = "updated", nullable = false)
     private Long updated;
 
@@ -46,7 +42,7 @@ public class VersionedEntity extends BaseEntity {
     @PrePersist
     public void updateCreated() {
         setCreated(new Date());
-        setUpdated(new Date());
+        updateUpdated();
     }
 
     @PreUpdate

@@ -2,7 +2,7 @@ import com.moodysalem.hibernate.model.VersionedEntity;
 import com.moodysalem.jaxrs.lib.BaseApplication;
 import com.moodysalem.jaxrs.lib.exceptionmappers.ErrorResponse;
 import com.moodysalem.jaxrs.lib.factories.JAXRSEntityManagerFactory;
-import com.moodysalem.jaxrs.lib.resources.EntityResource;
+import com.moodysalem.jaxrs.lib.resources.VersionedEntityResource;
 import com.moodysalem.jaxrs.lib.resources.config.PaginationParameterConfiguration;
 import com.moodysalem.jaxrs.lib.test.BaseTest;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
@@ -33,7 +33,7 @@ public class EntityResourceTest extends BaseTest {
     public static final String X_COUNT = "X-Count";
     public static final String START = "start";
     public static final String COUNT = "count";
-    public static final String SORT = "sort";
+
     private static final PaginationParameterConfiguration paginationConfig =
             new PaginationParameterConfiguration(START, COUNT, X_START, X_COUNT, X_TOTAL_COUNT, 500);
 
@@ -70,7 +70,7 @@ public class EntityResourceTest extends BaseTest {
 
 
     @Path("myentity")
-    public static class MyEntityResource extends EntityResource<MyEntity> {
+    public static class MyEntityResource extends VersionedEntityResource<MyEntity> {
         @Override
         public PaginationParameterConfiguration getPaginationConfiguration() {
             return paginationConfig;
@@ -208,7 +208,7 @@ public class EntityResourceTest extends BaseTest {
         final WebTarget wt = target("myentity");
         MyEntity me = new MyEntity();
         me.setHometown("to delete");
-        me = wt.request().post(Entity.json(Arrays.asList(me)), new GenericType<List<MyEntity>>() {
+        me = wt.request().post(Entity.json(Collections.singletonList(me)), new GenericType<List<MyEntity>>() {
         }).get(0);
 
         Response del = wt.path(me.getId().toString()).request().delete();
@@ -234,13 +234,13 @@ public class EntityResourceTest extends BaseTest {
         // unique name
         MyEntity me = new MyEntity();
         me.setHometown("#1");
-        Response constraintViolation = wt.request().post(Entity.json(Arrays.asList(me)));
+        Response constraintViolation = wt.request().post(Entity.json(Collections.singletonList(me)));
         assert constraintViolation.getStatus() != 200;
 
         // empty name
         MyEntity me2 = new MyEntity();
         me.setHometown("   ");
-        Response emptyName = wt.request().post(Entity.json(Arrays.asList(me2)));
+        Response emptyName = wt.request().post(Entity.json(Collections.singletonList(me2)));
         assert emptyName.getStatus() != 200;
 
         Response r = wt.queryParam(COUNT, 40).queryParam(START, 20)

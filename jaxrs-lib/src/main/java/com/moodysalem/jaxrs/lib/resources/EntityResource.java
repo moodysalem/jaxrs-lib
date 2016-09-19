@@ -10,6 +10,8 @@ import com.moodysalem.jaxrs.lib.resources.util.SortInfo;
 import javax.persistence.EntityManager;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.*;
+import javax.validation.Validation;
+import javax.validation.Validator;
 import javax.ws.rs.*;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.MediaType;
@@ -84,6 +86,25 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
         return Response.ok(entity).build();
     }
 
+    private static final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+
+    /**
+     * Get the entities with some set of IDs
+     *
+     * @param ids to get data for
+     * @return map of ID to entity
+     */
+    private Map<UUID, T> getOldData(final Set<UUID> ids) {
+        final CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+        final CriteriaQuery<T> query = cb.createQuery(getEntityClass());
+        final Root<T> from = query.from(getEntityClass());
+
+        return getEntityManager().createQuery(
+                query.select(from).where(from.get(BaseEntity_.id).in(ids))
+        ).getResultList()
+                .stream().collect(Collectors.toMap(BaseEntity::getId, Function.identity()));
+    }
+
     /**
      * Save a set of updates for some entities
      *
@@ -96,56 +117,17 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
             throw new RequestProcessingException(Response.Status.BAD_REQUEST, "Empty post body");
         }
 
-        // validate that each ID only shows up once in the POST to prevent strange behavior when saving
-        {
-            // count the number of times each ID occurs
-            final Map<UUID, Long> countById = list.stream()
-                    .filter(be -> be.getId() != null)
-                    .collect(Collectors.groupingBy(BaseEntity::getId, Collectors.counting()));
-
-            // return all the IDs that occur more than once
-            final Set<UUID> duplicates = countById.keySet()
-                    .stream()
-                    .filter(id -> countById.get(id) > 1)
-                    .collect(Collectors.toSet());
-
-            if (duplicates.size() > 0) {
-                throw new RequestProcessingException(Response.Status.BAD_REQUEST,
-                        format("The following IDs were found more than once in the request body: %s",
-                                duplicates.stream().map(UUID::toString).collect(Collectors.joining(", "))));
-            }
-        }
+        // verify the list contains no ID more than once
+        validateNoDuplicateIds(list);
 
         // collect all the old entities by ID
-        final Map<UUID, T> oldData = list.stream()
-                .filter(e -> e.getId() != null)
-                .map(id -> getEntityManager().find(getEntityClass(), id))
-                .collect(Collectors.toMap(BaseEntity::getId, Function.identity()));
+        final Map<UUID, T> oldData = getOldData(
+                list.stream().filter(e -> e.getId() != null)
+                        .map(BaseEntity::getId).collect(Collectors.toSet())
+        );
 
-        // verify that the user can save each of the posted entities
-        {
-            final List<String> permissionErrors = new LinkedList<>();
-
-            for (int ix = 0; ix < list.size(); ix++) {
-                final T entity = list.get(ix);
-
-                // if there is an ID we need to find it
-                final T old = entity.getId() != null ? oldData.get(entity.getId()) : null;
-
-                if (!canMerge(old, entity)) {
-                    permissionErrors.add(
-                            entity.getId() == null ?
-                                    format("Cannot save %s #%s", getEntityName(), ix) :
-                                    format("Cannot save %s with ID: %s", getEntityName(), entity.getId())
-                    );
-                }
-            }
-
-            if (!permissionErrors.isEmpty()) {
-                throw new RequestProcessingException(Response.Status.FORBIDDEN,
-                        permissionErrors.stream().toArray(String[]::new));
-            }
-        }
+        // verify that the user is authorized to save each of the posted entities
+        verifyCanMergeData(list, oldData);
 
         // now start saving the entities
         final List<T> saved = new LinkedList<>();
@@ -169,6 +151,67 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
         beforeSend(saved);
 
         return Response.ok(saved).build();
+    }
+
+    /**
+     * Verify that the user can save each of the items in the list of entities
+     *
+     * @param list    to verify
+     * @param oldData map of old data IDs
+     */
+    protected void verifyCanMergeData(final List<T> list, final Map<UUID, T> oldData) {
+        final List<com.moodysalem.jaxrs.lib.exceptionmappers.Error> permissionErrors = new LinkedList<>();
+
+        for (int ix = 0; ix < list.size(); ix++) {
+            final T entity = list.get(ix);
+
+            // if there is an ID we need to find it
+            final T old = entity.getId() != null ? oldData.get(entity.getId()) : null;
+
+            if (!canMerge(old, entity)) {
+                permissionErrors.add(
+                        new com.moodysalem.jaxrs.lib.exceptionmappers.Error(
+                                entity.getId(),
+                                "id",
+                                entity.getId() == null ?
+                                        format("Cannot save %s #%s", getEntityName(), ix) :
+                                        format("Cannot save %s with ID: %s", getEntityName(), entity.getId())
+                        )
+                );
+            }
+        }
+
+        if (!permissionErrors.isEmpty()) {
+            throw new RequestProcessingException(Response.Status.FORBIDDEN,
+                    permissionErrors.stream().toArray(com.moodysalem.jaxrs.lib.exceptionmappers.Error[]::new));
+        }
+    }
+
+    /**
+     * Validate the list only contains one entity per ID
+     *
+     * @param list to check
+     */
+    private void validateNoDuplicateIds(final List<T> list) {
+        if (list == null || list.isEmpty()) {
+            return;
+        }
+        // count the number of times each ID occurs
+        final Map<UUID, Long> countById = list.stream()
+                .filter(be -> be.getId() != null)
+                .collect(Collectors.groupingBy(BaseEntity::getId, Collectors.counting()));
+
+        // return all the IDs that occur more than once
+        final Set<UUID> duplicates = countById.keySet()
+                .stream()
+                .filter(id -> countById.get(id) > 1)
+                .collect(Collectors.toSet());
+
+        if (duplicates.size() > 0) {
+            throw new RequestProcessingException(Response.Status.BAD_REQUEST,
+                    format("The following IDs were found more than once in the request body: %s",
+                            duplicates.stream().map(UUID::toString).collect(Collectors.joining(", "))));
+        }
     }
 
     /**
