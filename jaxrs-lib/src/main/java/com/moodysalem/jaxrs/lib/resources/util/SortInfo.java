@@ -62,7 +62,7 @@ public class SortInfo {
         final Set<String> paths = new HashSet<>();
 
         return sorts.stream()
-                .filter(si -> !paths.add(Stream.of(si.getPath()).collect(Collectors.joining("."))))
+                .filter(si -> paths.add(Stream.of(si.getPath()).collect(Collectors.joining("."))))
                 .collect(Collectors.toList());
     }
 
