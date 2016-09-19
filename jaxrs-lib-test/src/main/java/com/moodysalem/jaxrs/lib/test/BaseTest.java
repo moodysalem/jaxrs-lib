@@ -26,8 +26,15 @@ public abstract class BaseTest extends JerseyTestNg.ContainerPerClassTest {
 
     @Override
     protected DeploymentContext configureDeployment() {
+        // Find first available port.
+        forceSet(TestProperties.CONTAINER_PORT, "0");
+
+        // Log traffic to console
         enable(TestProperties.LOG_TRAFFIC);
+
+        // Dump request and response bodies
         enable(TestProperties.DUMP_ENTITY);
+
         final ResourceConfig toDeploy = getResourceConfig();
 
         toDeploy.property(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, "true");
