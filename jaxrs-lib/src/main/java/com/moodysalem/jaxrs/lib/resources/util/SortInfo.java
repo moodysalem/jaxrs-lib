@@ -6,6 +6,14 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class SortInfo {
+    /**
+     * Parse the sort information out of some set of sort strings
+     *
+     * @param sortParams     strings indicating sorts
+     * @param orderSeparator the separator between the Ascending/Descending indicator and the path of the attribute
+     * @param pathSeparator  the separator between levels of the path attribute to sort on
+     * @return sorting information
+     */
     public static List<SortInfo> from(final List<String> sortParams, final String orderSeparator, final String pathSeparator) {
         if (sortParams == null || sortParams.isEmpty()) {
             return Collections.emptyList();
@@ -25,7 +33,7 @@ public class SortInfo {
             }
 
             final boolean asc = "A".equalsIgnoreCase(pieces[0].trim());
-            final String[] pathPieces = Stream.of(pathSeparator.split(pathSep))
+            final String[] pathPieces = Stream.of(pieces[1].split(pathSep))
                     .filter(s -> s != null && !s.trim().isEmpty())
                     .map(String::trim)
                     .toArray(String[]::new);
@@ -40,27 +48,28 @@ public class SortInfo {
         return removeDuplicates(sorts);
     }
 
+    /**
+     * Remove the sort attributes that appear more than once because you cannot sort on the same attribute twice
+     *
+     * @param sorts list of sort information
+     * @return sort information without duplicate paths
+     */
     private static List<SortInfo> removeDuplicates(final List<SortInfo> sorts) {
         if (sorts == null || sorts.isEmpty()) {
             return Collections.emptyList();
         }
 
-        final List<SortInfo> withoutDupes = new LinkedList<>();
         final Set<String> paths = new HashSet<>();
 
-        for (final SortInfo si : sorts) {
-            if (!paths.add(Stream.of(si.getPath()).collect(Collectors.joining(".")))) {
-                withoutDupes.add(si);
-            }
-        }
-
-        return withoutDupes;
+        return sorts.stream()
+                .filter(si -> !paths.add(Stream.of(si.getPath()).collect(Collectors.joining("."))))
+                .collect(Collectors.toList());
     }
 
     private final String[] path;
     private final boolean ascending;
 
-    public SortInfo(String[] path, boolean ascending) {
+    public SortInfo(final String[] path, final boolean ascending) {
         if (path == null || path.length == 0) {
             throw new IllegalArgumentException();
         }

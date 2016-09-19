@@ -10,8 +10,6 @@ import com.moodysalem.jaxrs.lib.resources.util.SortInfo;
 import javax.persistence.EntityManager;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.*;
-import javax.validation.Validation;
-import javax.validation.Validator;
 import javax.ws.rs.*;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.MediaType;
@@ -85,8 +83,6 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
 
         return Response.ok(entity).build();
     }
-
-    private static final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
     /**
      * Get the entities with some set of IDs
