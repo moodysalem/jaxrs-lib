@@ -33,10 +33,7 @@ import static java.lang.String.format;
  */
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public abstract class EntityResource<T extends BaseEntity> {
-    // this is defined by the extended user
-    public abstract EntityResourceConfig<T> getResourceConfig();
-
+public abstract class EntityResource<T extends BaseEntity> extends EntityResourceConfig<T> {
     private static final Logger LOG = Logger.getLogger(EntityResource.class.getName());
 
     /**
@@ -53,12 +50,12 @@ public abstract class EntityResource<T extends BaseEntity> {
 
         // getSingle the entities
         final List<T> entities = getListOfEntities(count, start);
-        getResourceConfig().beforeSend(entities);
+        beforeSend(entities);
 
         // count the total number of the results that would've been returned
         final long totalCount = getTotalCountOfEntities();
 
-        final PaginationParameterConfiguration paginationConfig = getResourceConfig().getPaginationConfiguration();
+        final PaginationParameterConfiguration paginationConfig = getPaginationConfiguration();
 
         // return the filtered and mapped list of entities
         return Response.ok(entities)
@@ -84,7 +81,7 @@ public abstract class EntityResource<T extends BaseEntity> {
             idNotFound(id);
         }
 
-        getResourceConfig().beforeSend(Collections.singletonList(entity));
+        beforeSend(Collections.singletonList(entity));
 
         return Response.ok(entity).build();
     }
@@ -96,11 +93,11 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @return map of ID to entity
      */
     private Map<UUID, T> getOldData(final Set<UUID> ids) {
-        final CriteriaBuilder cb = getResourceConfig().getEntityManager().getCriteriaBuilder();
-        final CriteriaQuery<T> query = cb.createQuery(getResourceConfig().getEntityClass());
-        final Root<T> from = query.from(getResourceConfig().getEntityClass());
+        final CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+        final CriteriaQuery<T> query = cb.createQuery(getEntityClass());
+        final Root<T> from = query.from(getEntityClass());
 
-        return getResourceConfig().getEntityManager().createQuery(
+        return getEntityManager().createQuery(
                 query.select(from).where(from.get(BaseEntity_.id).in(ids))
         ).getResultList()
                 .stream().collect(Collectors.toMap(BaseEntity::getId, Function.identity()));
@@ -136,12 +133,12 @@ public abstract class EntityResource<T extends BaseEntity> {
         // now save each entity
         {
             try {
-                withinTransaction(getResourceConfig().getEntityManager(), () ->
+                withinTransaction(getEntityManager(), () ->
                         list.forEach(e -> {
-                            getResourceConfig().beforeMerge(e.getId() != null ? oldData.get(e.getId()) : null, e);
-                            final T merged = getResourceConfig().getEntityManager().merge(e);
+                            beforeMerge(e.getId() != null ? oldData.get(e.getId()) : null, e);
+                            final T merged = getEntityManager().merge(e);
                             saved.add(merged);
-                            getResourceConfig().afterMerge(merged);
+                            afterMerge(merged);
                         })
                 );
             } catch (Exception e) {
@@ -149,7 +146,7 @@ public abstract class EntityResource<T extends BaseEntity> {
             }
         }
 
-        getResourceConfig().beforeSend(saved);
+        beforeSend(saved);
 
         return Response.ok(saved).build();
     }
@@ -169,14 +166,14 @@ public abstract class EntityResource<T extends BaseEntity> {
             // if there is an ID we need to find it
             final T old = entity.getId() != null ? oldData.get(entity.getId()) : null;
 
-            if (!getResourceConfig().canMerge(old, entity)) {
+            if (!canMerge(old, entity)) {
                 permissionRequestErrors.add(
                         new RequestError(
                                 entity.getId(),
                                 "id",
                                 entity.getId() == null ?
-                                        format("Cannot save %s #%s", getResourceConfig().getEntityName(), ix) :
-                                        format("Cannot save %s with ID: %s", getResourceConfig().getEntityName(), entity.getId())
+                                        format("Cannot save %s #%s", getEntityName(), ix) :
+                                        format("Cannot save %s with ID: %s", getEntityName(), entity.getId())
                         )
                 );
             }
@@ -231,14 +228,14 @@ public abstract class EntityResource<T extends BaseEntity> {
             idNotFound(id);
         }
 
-        if (!getResourceConfig().canDelete(entity)) {
+        if (!canDelete(entity)) {
             throw new RequestProcessingException(Response.Status.FORBIDDEN,
                     format("Not authorized to delete %s with ID %s",
-                            getResourceConfig().getEntityName(), entity.getId()));
+                            getEntityName(), entity.getId()));
         }
 
         try {
-            withinTransaction(getResourceConfig().getEntityManager(), () -> getResourceConfig().getEntityManager().remove(entity));
+            withinTransaction(getEntityManager(), () -> getEntityManager().remove(entity));
         } catch (Exception e) {
             throw RequestProcessingException.from(e);
         }
@@ -257,18 +254,18 @@ public abstract class EntityResource<T extends BaseEntity> {
 
         final List<T> toDelete = getListOfEntities(null, 0);
 
-        final Set<UUID> cannotDelete = toDelete.stream().filter((e) -> !getResourceConfig().canDelete(e)).map(BaseEntity::getId)
+        final Set<UUID> cannotDelete = toDelete.stream().filter((e) -> !canDelete(e)).map(BaseEntity::getId)
                 .collect(Collectors.toSet());
 
         if (!cannotDelete.isEmpty()) {
             throw new RequestProcessingException(Response.Status.FORBIDDEN,
                     format("Not authorized to delete %s with IDs: %s",
-                            getResourceConfig().getEntityName(),
+                            getEntityName(),
                             cannotDelete.stream().map(UUID::toString).collect(Collectors.joining(", "))));
         }
 
         try {
-            withinTransaction(getResourceConfig().getEntityManager(), () -> toDelete.forEach(getResourceConfig().getEntityManager()::remove));
+            withinTransaction(getEntityManager(), () -> toDelete.forEach(getEntityManager()::remove));
         } catch (Exception e) {
             throw RequestProcessingException.from(e);
         }
@@ -294,7 +291,7 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @return list of values assigned to query parameter
      */
     private List<String> getQueryParameters(final String param) {
-        return getResourceConfig().getContainerRequestContext().getUriInfo().getQueryParameters().get(param);
+        return getContainerRequestContext().getUriInfo().getQueryParameters().get(param);
     }
 
     /**
@@ -303,7 +300,7 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @return an int corresponding to the first record to return
      */
     private int getStart() {
-        final String start = getQueryParameter(getResourceConfig().getPaginationConfiguration().getStartQueryParameterName());
+        final String start = getQueryParameter(getPaginationConfiguration().getStartQueryParameterName());
         if (start != null) {
             try {
                 return Math.max(Integer.parseInt(start), 0);
@@ -320,8 +317,8 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @return the # of records, or null if all should be returned
      */
     private Integer getCount() {
-        final String countString = getQueryParameter(getResourceConfig().getPaginationConfiguration().getCountQueryParameterName());
-        final Integer maxCount = getResourceConfig().getPaginationConfiguration().getMaxPerPage();
+        final String countString = getQueryParameter(getPaginationConfiguration().getCountQueryParameterName());
+        final Integer maxCount = getPaginationConfiguration().getMaxPerPage();
 
         Integer count = null;
         if (countString != null) {
@@ -349,10 +346,10 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @return entity of type T with ID id
      */
     private T getEntityWithId(final UUID id) {
-        final EntityManager em = getResourceConfig().getEntityManager();
+        final EntityManager em = getEntityManager();
         final CriteriaBuilder cb = em.getCriteriaBuilder();
-        final CriteriaQuery<T> cq = cb.createQuery(getResourceConfig().getEntityClass());
-        final Root<T> from = cq.from(getResourceConfig().getEntityClass());
+        final CriteriaQuery<T> cq = cb.createQuery(getEntityClass());
+        final Root<T> from = cq.from(getEntityClass());
 
         final Predicate[] predicates = getPredicatesFromRequest(from).stream().toArray(Predicate[]::new);
 
@@ -372,10 +369,10 @@ public abstract class EntityResource<T extends BaseEntity> {
      * @return the total count of entities that match the predicates
      */
     private long getTotalCountOfEntities() {
-        final EntityManager em = getResourceConfig().getEntityManager();
+        final EntityManager em = getEntityManager();
         final CriteriaBuilder cb = em.getCriteriaBuilder();
         final CriteriaQuery<Long> cq = cb.createQuery(Long.class);
-        final Root<T> root = cq.from(getResourceConfig().getEntityClass());
+        final Root<T> root = cq.from(getEntityClass());
 
         final Predicate[] predicates = getPredicatesFromRequest(root).stream().toArray(Predicate[]::new);
 
@@ -396,11 +393,11 @@ public abstract class EntityResource<T extends BaseEntity> {
             return Collections.emptyList();
         }
 
-        final EntityManager em = getResourceConfig().getEntityManager();
+        final EntityManager em = getEntityManager();
         final CriteriaBuilder cb = em.getCriteriaBuilder();
 
-        final CriteriaQuery<T> cq = cb.createQuery(getResourceConfig().getEntityClass());
-        final Root<T> from = cq.from(getResourceConfig().getEntityClass());
+        final CriteriaQuery<T> cq = cb.createQuery(getEntityClass());
+        final Root<T> from = cq.from(getEntityClass());
         cq.select(from).distinct(true);
 
         final Predicate[] predicates = getPredicatesFromRequest(from).stream().toArray(Predicate[]::new);
@@ -443,7 +440,7 @@ public abstract class EntityResource<T extends BaseEntity> {
      */
     // TODO: refactor sort query parameter parsing
     private void getOrderFromRequest(final Root<T> from, final List<Order> orders) {
-        final SortParameterConfiguration sortConfig = getResourceConfig().getSortConfiguration();
+        final SortParameterConfiguration sortConfig = getSortConfiguration();
         final List<SortInfo> sorts = SortInfo.from(
                 getQueryParameters(sortConfig.getQueryParameterName()),
                 sortConfig.getSortInfoSeparator(),
@@ -454,7 +451,7 @@ public abstract class EntityResource<T extends BaseEntity> {
             return;
         }
 
-        final CriteriaBuilder cb = getResourceConfig().getEntityManager().getCriteriaBuilder();
+        final CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
 
         for (final SortInfo sort : sorts) {
             if (orders.size() > sortConfig.getMaxSorts()) {
@@ -497,7 +494,7 @@ public abstract class EntityResource<T extends BaseEntity> {
      */
     private List<Predicate> getPredicatesFromRequest(final Root<T> root) {
         final List<Predicate> predicates = new LinkedList<>();
-        getResourceConfig().getPredicatesFromRequest(predicates, root);
+        getPredicatesFromRequest(predicates, root);
         return predicates;
     }
 
@@ -508,14 +505,14 @@ public abstract class EntityResource<T extends BaseEntity> {
      */
     private void idNotFound(final UUID id) {
         throw new RequestProcessingException(Response.Status.NOT_FOUND,
-                format("%s with ID %s not found", getResourceConfig().getEntityName(), id));
+                format("%s with ID %s not found", getEntityName(), id));
     }
 
     /**
      * Helper method checks logged in
      */
     private void checkLoggedIn() {
-        if (getResourceConfig().requiresLogin() && !getResourceConfig().isLoggedIn()) {
+        if (requiresLogin() && !isLoggedIn()) {
             throw new RequestProcessingException(Response.Status.UNAUTHORIZED,
                     "You must be logged in to access this resource.");
         }
