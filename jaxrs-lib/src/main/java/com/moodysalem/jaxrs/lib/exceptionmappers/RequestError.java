@@ -7,21 +7,20 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Generic error object
+ * A value type that stores information about a request error
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class Error {
+public class RequestError {
     private final UUID id;
-    private final String attribute;
-    private final String message;
+    private final String attribute, message;
 
-    public Error(String message) {
+    public RequestError(final String message) {
         this(null, null, message);
     }
 
-    public Error(@JsonProperty("id") UUID id,
-                 @JsonProperty("attribute") String attribute,
-                 @JsonProperty("message") String message) {
+    public RequestError(@JsonProperty("id") UUID id,
+                        @JsonProperty("attribute") String attribute,
+                        @JsonProperty("message") String message) {
         this.id = id;
         this.attribute = attribute;
         this.message = message;
@@ -43,10 +42,10 @@ public class Error {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Error error = (Error) o;
-        return Objects.equals(getId(), error.getId()) &&
-                Objects.equals(getAttribute(), error.getAttribute()) &&
-                Objects.equals(getMessage(), error.getMessage());
+        RequestError requestError = (RequestError) o;
+        return Objects.equals(getId(), requestError.getId()) &&
+                Objects.equals(getAttribute(), requestError.getAttribute()) &&
+                Objects.equals(getMessage(), requestError.getMessage());
     }
 
     @Override

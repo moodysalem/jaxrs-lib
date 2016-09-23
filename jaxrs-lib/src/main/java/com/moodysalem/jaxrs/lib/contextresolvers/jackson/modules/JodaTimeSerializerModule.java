@@ -23,7 +23,6 @@ import java.util.logging.Logger;
  * Adds support for serializing and deserializing LocalDate and LocalDateTime and LocalTime fields
  */
 public class JodaTimeSerializerModule extends SimpleModule {
-
     private static final Logger LOG = Logger.getLogger(JodaTimeSerializerModule.class.getName());
 
     public JodaTimeSerializerModule() {

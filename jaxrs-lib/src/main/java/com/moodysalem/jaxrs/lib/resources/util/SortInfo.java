@@ -5,6 +5,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * Contains information about
+ */
 public class SortInfo {
     /**
      * Parse the sort information out of some set of sort strings

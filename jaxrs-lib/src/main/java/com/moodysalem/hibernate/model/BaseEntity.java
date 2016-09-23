@@ -1,6 +1,5 @@
 package com.moodysalem.hibernate.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.hibernate.annotations.Type;
 
 import javax.persistence.*;
@@ -24,7 +23,7 @@ public abstract class BaseEntity {
 
     @PrePersist
     @PreUpdate
-    protected void onCreate() {
+    protected void generateId() {
         if (getId() == null) {
             setId(UUID.randomUUID());
         }

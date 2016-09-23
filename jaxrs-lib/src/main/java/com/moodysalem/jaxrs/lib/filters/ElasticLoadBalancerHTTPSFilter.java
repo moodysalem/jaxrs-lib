@@ -13,8 +13,7 @@ import java.io.IOException;
 @Provider
 @PreMatching
 public class ElasticLoadBalancerHTTPSFilter implements ContainerRequestFilter {
-    public static final String PROTO_HEADER = "X-Forwarded-Proto";
-    public static final String HTTPS = "https";
+    public static final String PROTO_HEADER = "X-Forwarded-Proto", HTTPS = "https";
 
     @Override
     public void filter(ContainerRequestContext containerRequestContext) throws IOException {
@@ -23,16 +22,16 @@ public class ElasticLoadBalancerHTTPSFilter implements ContainerRequestFilter {
         if (proto != null && !HTTPS.equalsIgnoreCase(proto)) {
             // forward the client to the https version of the site
             containerRequestContext.abortWith(
-                Response.status(Response.Status.FOUND)
-                    .header("Location",
-                        containerRequestContext.getUriInfo().getBaseUriBuilder()
-                            .scheme(HTTPS)
-                            // remove all the information they shouldn't have communicated over http
-                            .replaceQuery("")
-                            .build()
-                            .toURL()
-                            .toString()
-                    ).build()
+                    Response.status(Response.Status.FOUND)
+                            .header("Location",
+                                    containerRequestContext.getUriInfo().getBaseUriBuilder()
+                                            .scheme(HTTPS)
+                                            // remove all the information they shouldn't have communicated over http
+                                            .replaceQuery("")
+                                            .build()
+                                            .toURL()
+                                            .toString()
+                            ).build()
             );
         }
     }

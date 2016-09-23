@@ -13,22 +13,20 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Adds CORS headers to all the corresponding resources
- * <p>
- * Apply the Skip annotation to a method or class to disable this filter for a specific method or class
+ * Adds CORS headers to all the resources not annotated with the @CORSFilter.Skip annotation
  */
 public class CORSFilter implements DynamicFeature {
-
     public static final int ACCESS_CONTROL_CACHE_SECONDS = 2592000;
-    public static final String ACCESS_CONTROL_EXPOSE_HEADERS = "Access-Control-Expose-Headers";
-    public static final String ACCESS_CONTROL_MAX_AGE = "Access-Control-Max-Age";
-    public static final String ACCESS_CONTROL_ALLOW_ORIGIN = "Access-Control-Allow-Origin";
-    public static final String ACCESS_CONTROL_ALLOW_CREDENTIALS = "Access-Control-Allow-Credentials";
-    public static final String ACCESS_CONTROL_ALLOW_METHODS = "Access-Control-Allow-Methods";
-    public static final String ACCESS_CONTROL_ALLOW_HEADERS = "Access-Control-Allow-Headers";
-    public static final String ACCESS_CONTROL_REQUEST_HEADERS = "Access-Control-Request-Headers";
-    public static final String ALL_METHODS = "GET,POST,DELETE,PUT,OPTIONS";
-    public static final String ORIGIN_HEADER = "Origin";
+
+    public static final String ACCESS_CONTROL_EXPOSE_HEADERS = "Access-Control-Expose-Headers",
+            ACCESS_CONTROL_MAX_AGE = "Access-Control-Max-Age",
+            ACCESS_CONTROL_ALLOW_ORIGIN = "Access-Control-Allow-Origin",
+            ACCESS_CONTROL_ALLOW_CREDENTIALS = "Access-Control-Allow-Credentials",
+            ACCESS_CONTROL_ALLOW_METHODS = "Access-Control-Allow-Methods",
+            ACCESS_CONTROL_ALLOW_HEADERS = "Access-Control-Allow-Headers",
+            ACCESS_CONTROL_REQUEST_HEADERS = "Access-Control-Request-Headers",
+            ALL_METHODS = "GET,POST,DELETE,PUT,OPTIONS",
+            ORIGIN_HEADER = "Origin";
 
     /**
      * Apply the filter to the methods and classes that don't have the Skip annotation
@@ -54,7 +52,6 @@ public class CORSFilter implements DynamicFeature {
     @Provider
     @Priority(Priorities.HEADER_DECORATOR)
     public static class Filter implements ContainerResponseFilter {
-
         @Override
         public void filter(ContainerRequestContext req, ContainerResponseContext resp)
                 throws IOException {
@@ -83,9 +80,7 @@ public class CORSFilter implements DynamicFeature {
                 // allow browser to cache this forever
                 headers.putSingle(ACCESS_CONTROL_MAX_AGE, ACCESS_CONTROL_CACHE_SECONDS);
             }
-
         }
-
     }
 
 }

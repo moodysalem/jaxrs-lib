@@ -11,15 +11,14 @@ import javax.ws.rs.ext.Provider;
  */
 @Provider
 public class ObjectMapperContextResolver implements ContextResolver<ObjectMapper> {
-    private static final ObjectMapper om;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     static {
-        om = new ObjectMapper();
-        om.registerModule(new JodaTimeSerializerModule());
+        OBJECT_MAPPER.registerModule(new JodaTimeSerializerModule());
     }
 
     @Override
     public ObjectMapper getContext(Class<?> type) {
-        return om;
+        return OBJECT_MAPPER;
     }
 }

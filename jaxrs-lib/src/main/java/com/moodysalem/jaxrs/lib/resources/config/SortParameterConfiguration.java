@@ -1,5 +1,8 @@
 package com.moodysalem.jaxrs.lib.resources.config;
 
+/**
+ * Value type that contains information about how the sorting should be handled for a particular entity resource
+ */
 public class SortParameterConfiguration {
     public static SortParameterConfiguration DEFAULT = new SortParameterConfiguration("sort", "\\|", "\\.", (short) 3);
 

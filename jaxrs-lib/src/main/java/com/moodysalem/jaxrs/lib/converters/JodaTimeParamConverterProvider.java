@@ -5,6 +5,7 @@ import javax.ws.rs.ext.ParamConverterProvider;
 import javax.ws.rs.ext.Provider;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -18,22 +19,27 @@ import java.util.logging.Logger;
 @SuppressWarnings("unchecked")
 @Provider
 public class JodaTimeParamConverterProvider implements ParamConverterProvider {
+    private static final Logger LOG = Logger.getLogger(JodaTimeParamConverterProvider.class.getName());
+    private static final LocalDateParamConverter localDateParamConverter = new LocalDateParamConverter();
+    private static final LocalDateTimeParamConverter localDateTimeParamConverter = new LocalDateTimeParamConverter();
+    private static final LocalTimeParamConverter localTimeParamConverter = new LocalTimeParamConverter();
+    private static final InstantParamConverter instantParamConverter = new InstantParamConverter();
 
     @Override
     public <T> ParamConverter<T> getConverter(Class<T> rawType, Type genericType, Annotation[] annotations) {
         if (rawType.equals(LocalDate.class)) {
-            return (ParamConverter<T>) new LocalDateParamConverter();
+            return (ParamConverter<T>) localDateParamConverter;
         } else if (rawType.equals(LocalDateTime.class)) {
-            return (ParamConverter<T>) new LocalDateTimeParamConverter();
+            return (ParamConverter<T>) localDateTimeParamConverter;
         } else if (rawType.equals(LocalTime.class)) {
-            return (ParamConverter<T>) new LocalTimeParamConverter();
+            return (ParamConverter<T>) localTimeParamConverter;
+        } else if (rawType.equals(Instant.class)) {
+            return (ParamConverter<T>) instantParamConverter;
         }
         return null;
     }
 
-    public static class LocalDateParamConverter implements ParamConverter<LocalDate> {
-        private static final Logger LOG = Logger.getLogger(LocalDateParamConverter.class.getName());
-
+    private static class LocalDateParamConverter implements ParamConverter<LocalDate> {
         @Override
         public LocalDate fromString(String value) {
             if (value != null) {
@@ -55,9 +61,7 @@ public class JodaTimeParamConverterProvider implements ParamConverterProvider {
         }
     }
 
-    public static class LocalTimeParamConverter implements ParamConverter<LocalTime> {
-        private static final Logger LOG = Logger.getLogger(LocalDateParamConverter.class.getName());
-
+    private static class LocalTimeParamConverter implements ParamConverter<LocalTime> {
         @Override
         public LocalTime fromString(String value) {
             if (value != null) {
@@ -79,9 +83,7 @@ public class JodaTimeParamConverterProvider implements ParamConverterProvider {
         }
     }
 
-    public static class LocalDateTimeParamConverter implements ParamConverter<LocalDateTime> {
-        private static final Logger LOG = Logger.getLogger(LocalDateTimeParamConverter.class.getName());
-
+    private static class LocalDateTimeParamConverter implements ParamConverter<LocalDateTime> {
         @Override
         public LocalDateTime fromString(String value) {
             if (value != null) {
@@ -96,6 +98,31 @@ public class JodaTimeParamConverterProvider implements ParamConverterProvider {
 
         @Override
         public String toString(LocalDateTime value) {
+            if (value != null) {
+                return value.toString();
+            }
+            return null;
+        }
+    }
+
+    private static class InstantParamConverter implements ParamConverter<Instant> {
+        @Override
+        public Instant fromString(String value) {
+            if (value != null) {
+                try {
+                    return Instant.parse(value);
+                } catch (DateTimeParseException e) {
+                    LOG.log(Level.WARNING, "Invalid instant parameter value specified", e);
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public String toString(Instant instant) {
+            if (instant != null) {
+                return instant.toString();
+            }
             return null;
         }
     }

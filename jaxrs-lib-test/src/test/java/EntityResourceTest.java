@@ -3,6 +3,7 @@ import com.moodysalem.jaxrs.lib.BaseApplication;
 import com.moodysalem.jaxrs.lib.exceptionmappers.ErrorResponse;
 import com.moodysalem.jaxrs.lib.factories.JAXRSEntityManagerFactory;
 import com.moodysalem.jaxrs.lib.resources.VersionedEntityResource;
+import com.moodysalem.jaxrs.lib.resources.config.EntityResourceConfig;
 import com.moodysalem.jaxrs.lib.resources.config.PaginationParameterConfiguration;
 import com.moodysalem.jaxrs.lib.test.BaseTest;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
@@ -71,11 +72,6 @@ public class EntityResourceTest extends BaseTest {
 
     @Path("myentity")
     public static class MyEntityResource extends VersionedEntityResource<MyEntity> {
-        @Override
-        public PaginationParameterConfiguration getPaginationConfiguration() {
-            return paginationConfig;
-        }
-
         @Context
         ContainerRequestContext req;
 
@@ -83,59 +79,68 @@ public class EntityResourceTest extends BaseTest {
         EntityManager em;
 
         @Override
-        protected ContainerRequestContext getContainerRequestContext() {
-            return req;
-        }
+        public EntityResourceConfig<MyEntity> getResourceConfig() {
+            return new EntityResourceConfig<MyEntity>() {
+                @Override
+                public PaginationParameterConfiguration getPaginationConfiguration() {
+                    return paginationConfig;
+                }
 
-        @Override
-        protected EntityManager getEntityManager() {
-            return em;
-        }
+                @Override
+                public boolean canDelete(MyEntity entity) {
+                    return true;
+                }
 
+                @Override
+                public void beforeMerge(MyEntity oldData, MyEntity newData) {
 
-        @Override
-        public boolean isLoggedIn() {
-            return false;
-        }
+                }
 
-        @Override
-        public Class<MyEntity> getEntityClass() {
-            return MyEntity.class;
-        }
+                @Override
+                public void getPredicatesFromRequest(List<Predicate> predicates, Root<MyEntity> root) {
 
-        @Override
-        public boolean requiresLogin() {
-            return false;
-        }
+                }
 
-        @Override
-        public boolean canMerge(MyEntity oldData, MyEntity newData) {
-            return !"ABC".equals(newData.getHometown());
-        }
+                @Override
+                public void beforeSend(List<MyEntity> entity) {
 
-        @Override
-        public boolean canDelete(MyEntity entity) {
-            return true;
-        }
+                }
 
-        @Override
-        public void beforeMerge(MyEntity oldData, MyEntity newData) {
+                @Override
+                public void afterMerge(MyEntity entity) {
 
-        }
+                }
 
-        @Override
-        protected void getPredicatesFromRequest(List<Predicate> predicates, Root<MyEntity> root) {
+                @Override
+                public boolean isLoggedIn() {
+                    return false;
+                }
 
-        }
+                @Override
+                public Class<MyEntity> getEntityClass() {
+                    return MyEntity.class;
+                }
 
-        @Override
-        public void beforeSend(List<MyEntity> entity) {
+                @Override
+                public boolean requiresLogin() {
+                    return false;
+                }
 
-        }
+                @Override
+                public boolean canMerge(MyEntity oldData, MyEntity newData) {
+                    return !"ABC".equals(newData.getHometown());
+                }
 
-        @Override
-        public void afterMerge(MyEntity entity) {
+                @Override
+                public ContainerRequestContext getContainerRequestContext() {
+                    return req;
+                }
 
+                @Override
+                public EntityManager getEntityManager() {
+                    return em;
+                }
+            };
         }
     }
 
@@ -182,9 +187,9 @@ public class EntityResourceTest extends BaseTest {
 
         final ErrorResponse error = r.readEntity(ErrorResponse.class);
         assertTrue(error.getStatusCode() == 403);
-        assertTrue(error.getErrors().size() == 1);
-        assertTrue(error.getNumErrors() == error.getErrors().size());
-        assertTrue(error.getErrors().iterator().next().getMessage() != null);
+        assertTrue(error.getRequestErrors().size() == 1);
+        assertTrue(error.getNumErrors() == error.getRequestErrors().size());
+        assertTrue(error.getRequestErrors().iterator().next().getMessage() != null);
     }
 
     @Test

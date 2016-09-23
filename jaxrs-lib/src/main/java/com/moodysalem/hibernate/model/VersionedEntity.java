@@ -1,17 +1,20 @@
 package com.moodysalem.hibernate.model;
 
 import javax.persistence.*;
+import javax.validation.constraints.NotNull;
 import java.util.Date;
 
 @MappedSuperclass
-public class VersionedEntity extends BaseEntity {
+public abstract class VersionedEntity extends BaseEntity {
     @Version
     @Column(name = "version", nullable = false)
     private long version;
 
+    @NotNull
     @Column(name = "created", updatable = false, nullable = false)
     private Long created;
 
+    @NotNull
     @Column(name = "updated", nullable = false)
     private Long updated;
 

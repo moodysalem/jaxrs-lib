@@ -15,12 +15,12 @@ import java.util.Set;
 public class WebApplicationExceptionMapper implements ExceptionMapper<WebApplicationException> {
     @Override
     public Response toResponse(WebApplicationException e) {
-        final Set<Error> errors = new HashSet<>(Collections.singletonList(new Error(e.getMessage())));
-        final ErrorResponse response = new ErrorResponse(e.getResponse().getStatus(), errors);
+        final Set<RequestError> requestErrors = new HashSet<>(Collections.singletonList(new RequestError(e.getMessage())));
+        final ErrorResponse response = new ErrorResponse(e.getResponse().getStatus(), requestErrors);
 
         return Response.fromResponse(e.getResponse())
                 .entity(response)
-                .header(RequestProcessingExceptionMapper.NUMBER_OF_ERRORS_HEADER, errors.size())
+                .header(RequestProcessingExceptionMapper.NUMBER_OF_ERRORS_HEADER, requestErrors.size())
                 .build();
     }
 }

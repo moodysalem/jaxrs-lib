@@ -1,8 +1,6 @@
-package com.moodysalem.jaxrs.lib.resources;
+package com.moodysalem.jaxrs.lib.resources.config;
 
 import com.moodysalem.hibernate.model.BaseEntity;
-import com.moodysalem.jaxrs.lib.resources.config.PaginationParameterConfiguration;
-import com.moodysalem.jaxrs.lib.resources.config.SortParameterConfiguration;
 
 import javax.persistence.EntityManager;
 import javax.persistence.criteria.Predicate;
@@ -11,12 +9,11 @@ import javax.ws.rs.container.ContainerRequestContext;
 import java.util.List;
 
 /**
- * These are the abstract methods that are used to configure an entity resource
- * Pulled out into its own class for better organization
+ * This is the configuration of an entity resource - usually only created once per entity resource+
  *
  * @param <T> type of the entity
  */
-abstract class EntityResourceConfig<T extends BaseEntity> {
+public abstract class EntityResourceConfig<T extends BaseEntity> {
     /**
      * Return the entity Class that this resource manages
      *
@@ -51,12 +48,6 @@ abstract class EntityResourceConfig<T extends BaseEntity> {
         return PaginationParameterConfiguration.DEFAULT;
     }
 
-    // whether the user is authenticated
-    public abstract boolean isLoggedIn();
-
-    // whether the resource requires login
-    public abstract boolean requiresLogin();
-
     // whether the entity can be created
     public abstract boolean canMerge(final T oldData, final T newData);
 
@@ -70,12 +61,20 @@ abstract class EntityResourceConfig<T extends BaseEntity> {
     public abstract boolean canDelete(final T toDelete);
 
     // getSingle a list of query predicates for lists
-    protected abstract void getPredicatesFromRequest(final List<Predicate> predicates, final Root<T> root);
+    public abstract void getPredicatesFromRequest(final List<Predicate> predicates, final Root<T> root);
 
     // used to perform transformations before sending back an entity in a response
     public abstract void beforeSend(final List<T> entity);
 
-    protected abstract ContainerRequestContext getContainerRequestContext();
+    // whether the user is authenticated
+    public abstract boolean isLoggedIn();
 
-    protected abstract EntityManager getEntityManager();
+    // whether the resource requires login
+    public abstract boolean requiresLogin();
+
+    // get the container request context used for finding query parameters
+    public abstract ContainerRequestContext getContainerRequestContext();
+
+    // get the entity manager used for querying the database
+    public abstract EntityManager getEntityManager();
 }

@@ -1,6 +1,6 @@
 package com.moodysalem.jaxrs.lib.exceptions;
 
-import com.moodysalem.jaxrs.lib.exceptionmappers.Error;
+import com.moodysalem.jaxrs.lib.exceptionmappers.RequestError;
 import org.hibernate.exception.ConstraintViolationException;
 
 import javax.persistence.PersistenceException;
@@ -60,11 +60,11 @@ public class RequestProcessingException extends RuntimeException {
     }
 
 
-    private final Set<Error> errors = new HashSet<>();
+    private final Set<RequestError> requestErrors = new HashSet<>();
     private final int statusCode;
 
-    public Set<Error> getErrors() {
-        return errors;
+    public Set<RequestError> getRequestErrors() {
+        return requestErrors;
     }
 
     public int getStatusCode() {
@@ -73,29 +73,29 @@ public class RequestProcessingException extends RuntimeException {
 
     private void addError(String error) {
         if (error != null) {
-            errors.add(new Error(error));
+            requestErrors.add(new RequestError(error));
         }
     }
 
-    private void addError(Error error) {
-        if (error != null) {
-            errors.add(error);
+    private void addError(RequestError requestError) {
+        if (requestError != null) {
+            requestErrors.add(requestError);
         }
     }
 
-    public RequestProcessingException(int statusCode, Error... errors) {
+    public RequestProcessingException(int statusCode, RequestError... requestErrors) {
         this.statusCode = statusCode;
-        if (errors != null) {
-            for (Error e : errors) {
+        if (requestErrors != null) {
+            for (RequestError e : requestErrors) {
                 addError(e);
             }
         }
     }
 
-    public RequestProcessingException(Response.Status status, Error... errors) {
+    public RequestProcessingException(Response.Status status, RequestError... requestErrors) {
         this.statusCode = status != null ? status.getStatusCode() : 400;
-        if (errors != null) {
-            for (Error e : errors) {
+        if (requestErrors != null) {
+            for (RequestError e : requestErrors) {
                 addError(e);
             }
         }
@@ -119,8 +119,8 @@ public class RequestProcessingException extends RuntimeException {
         }
     }
 
-    public RequestProcessingException(Error... errors) {
-        this(400, errors);
+    public RequestProcessingException(RequestError... requestErrors) {
+        this(400, requestErrors);
     }
 
     public RequestProcessingException(String... errors) {

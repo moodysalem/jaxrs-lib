@@ -1,7 +1,7 @@
 package com.moodysalem.jaxrs.lib.resources;
 
 import com.moodysalem.hibernate.model.VersionedEntity;
-import com.moodysalem.jaxrs.lib.exceptionmappers.Error;
+import com.moodysalem.jaxrs.lib.exceptionmappers.RequestError;
 import com.moodysalem.jaxrs.lib.exceptions.RequestProcessingException;
 
 import javax.ws.rs.core.Response;
@@ -15,7 +15,7 @@ public abstract class VersionedEntityResource<T extends VersionedEntity> extends
     protected void verifyCanMergeData(List<T> list, Map<UUID, T> oldData) {
         super.verifyCanMergeData(list, oldData);
 
-        final List<Error> failedVersionCheck = new LinkedList<>();
+        final List<RequestError> failedVersionCheck = new LinkedList<>();
         list.forEach(e -> {
             if (e.getId() == null) {
                 return;
@@ -24,7 +24,7 @@ public abstract class VersionedEntityResource<T extends VersionedEntity> extends
             if (old != null) {
                 if (e.getVersion() != old.getVersion()) {
                     failedVersionCheck.add(
-                            new Error(
+                            new RequestError(
                                     e.getId(),
                                     "version",
                                     "Version check failed"
@@ -36,7 +36,7 @@ public abstract class VersionedEntityResource<T extends VersionedEntity> extends
 
         if (!failedVersionCheck.isEmpty()) {
             throw new RequestProcessingException(Response.Status.CONFLICT,
-                    failedVersionCheck.stream().toArray(Error[]::new));
+                    failedVersionCheck.stream().toArray(RequestError[]::new));
         }
     }
 }

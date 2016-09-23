@@ -2,6 +2,9 @@ package com.moodysalem.jaxrs.lib.resources.config;
 
 import java.util.Objects;
 
+/**
+ * Value type that contains information about how the pagination should be handled for a particular entity resource
+ */
 public class PaginationParameterConfiguration {
     public static PaginationParameterConfiguration DEFAULT =
             new PaginationParameterConfiguration("start", "count", "X-Start", "X-Count", "X-Total-Count", null);

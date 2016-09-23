@@ -15,7 +15,7 @@ public class RequestProcessingExceptionMapper implements ExceptionMapper<Request
 
     @Override
     public Response toResponse(RequestProcessingException e) {
-        final ErrorResponse res = new ErrorResponse(e.getStatusCode(), e.getErrors());
+        final ErrorResponse res = new ErrorResponse(e.getStatusCode(), e.getRequestErrors());
 
         return Response.status(e.getStatusCode())
                 .entity(res)
