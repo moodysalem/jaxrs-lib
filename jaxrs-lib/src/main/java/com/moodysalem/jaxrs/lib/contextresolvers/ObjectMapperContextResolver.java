@@ -1,5 +1,6 @@
 package com.moodysalem.jaxrs.lib.contextresolvers;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodysalem.jaxrs.lib.contextresolvers.jackson.modules.JodaTimeSerializerModule;
 
@@ -15,6 +16,7 @@ public class ObjectMapperContextResolver implements ContextResolver<ObjectMapper
 
     static {
         OBJECT_MAPPER.registerModule(new JodaTimeSerializerModule());
+        OBJECT_MAPPER.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
     @Override
