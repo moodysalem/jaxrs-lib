@@ -108,18 +108,8 @@ public class EntityResourceTest extends BaseTest {
         }
 
         @Override
-        public boolean isLoggedIn() {
-            return false;
-        }
-
-        @Override
         public Class<MyEntity> getEntityClass() {
             return MyEntity.class;
-        }
-
-        @Override
-        public boolean requiresLogin() {
-            return false;
         }
 
         @Override
@@ -135,6 +125,11 @@ public class EntityResourceTest extends BaseTest {
         @Override
         public EntityManager getEntityManager() {
             return em;
+        }
+
+        @Override
+        public void checkAccess(Action action) {
+
         }
     }
 

@@ -66,15 +66,22 @@ public abstract class EntityResourceConfig<T extends BaseEntity> {
     // used to perform transformations before sending back an entity in a response
     public abstract void beforeSend(final List<T> entity);
 
-    // whether the user is authenticated
-    public abstract boolean isLoggedIn();
-
-    // whether the resource requires login
-    public abstract boolean requiresLogin();
-
     // get the container request context used for finding query parameters
     public abstract ContainerRequestContext getContainerRequestContext();
 
     // get the entity manager used for querying the database
     public abstract EntityManager getEntityManager();
+
+    /**
+     * Helper method checks logged in
+     */
+    public abstract void checkAccess(Action action);
+
+    public enum Action {
+        LIST,
+        GET_SINGLE,
+        SAVE,
+        DELETE_SINGLE,
+        DELETE
+    }
 }

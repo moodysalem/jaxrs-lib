@@ -22,6 +22,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import static com.moodysalem.jaxrs.lib.resources.config.EntityResourceConfig.Action.*;
 import static com.moodysalem.jaxrs.lib.resources.util.TXHelper.withinTransaction;
 import static java.lang.String.format;
 
@@ -43,7 +44,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      */
     @GET
     public Response getList() {
-        checkLoggedIn();
+        checkAccess(LIST);
 
         final Integer count = getCount();
         final int start = getStart();
@@ -74,7 +75,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
     @GET
     @Path("{id}")
     public Response getSingle(@PathParam("id") final UUID id) {
-        checkLoggedIn();
+        checkAccess(GET_SINGLE);
 
         final T entity = getEntityWithId(id);
         if (entity == null) {
@@ -111,6 +112,8 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      */
     @POST
     public Response save(final List<T> list) {
+        checkAccess(SAVE);
+
         if (list == null || list.isEmpty()) {
             throw new RequestProcessingException(Response.Status.BAD_REQUEST, "Empty post body");
         }
@@ -221,7 +224,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
     @DELETE
     @Path("{id}")
     public Response delete(@PathParam("id") final UUID id) {
-        checkLoggedIn();
+        checkAccess(DELETE_SINGLE);
 
         final T entity = getEntityWithId(id);
         if (entity == null) {
@@ -250,7 +253,7 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
      */
     @DELETE
     public Response deleteAll() {
-        checkLoggedIn();
+        checkAccess(DELETE);
 
         final List<T> toDelete = getListOfEntities(null, 0);
 
@@ -508,14 +511,5 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
                 format("%s with ID %s not found", getEntityName(), id));
     }
 
-    /**
-     * Helper method checks logged in
-     */
-    private void checkLoggedIn() {
-        if (requiresLogin() && !isLoggedIn()) {
-            throw new RequestProcessingException(Response.Status.UNAUTHORIZED,
-                    "You must be logged in to access this resource.");
-        }
-    }
 }
 
