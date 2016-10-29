@@ -7,6 +7,7 @@ import com.moodysalem.jaxrs.lib.exceptions.RequestProcessingException;
 import com.moodysalem.jaxrs.lib.resources.config.EntityResourceConfig;
 import com.moodysalem.jaxrs.lib.resources.config.PaginationParameterConfiguration;
 import com.moodysalem.jaxrs.lib.resources.config.SortParameterConfiguration;
+import com.moodysalem.jaxrs.lib.resources.util.QueryHelper;
 import com.moodysalem.jaxrs.lib.resources.util.SortInfo;
 
 import javax.persistence.EntityManager;
@@ -130,17 +131,19 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
         // verify that the user is authorized to save each of the posted entities
         verifyCanMergeData(list, oldData);
 
+        final EntityManager em = getEntityManager();
+
         // now start saving the entities
-        final List<T> saved = new LinkedList<>();
+        final Set<UUID> ids = new HashSet<>();
 
         // now save each entity
         {
             try {
-                withinTransaction(getEntityManager(), () ->
+                withinTransaction(em, () ->
                         list.forEach(e -> {
                             beforeMerge(e.getId() != null ? oldData.get(e.getId()) : null, e);
                             final T merged = getEntityManager().merge(e);
-                            saved.add(merged);
+                            ids.add(merged.getId());
                             afterMerge(merged);
                         })
                 );
@@ -148,6 +151,9 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
                 throw RequestProcessingException.from(e);
             }
         }
+
+        em.clear();
+        final List<T> saved = QueryHelper.query(em, getEntityClass(), e -> e.get(BaseEntity_.id).in(ids));
 
         beforeSend(saved);
 
