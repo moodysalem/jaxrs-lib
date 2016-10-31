@@ -122,11 +122,12 @@ public abstract class EntityResource<T extends BaseEntity> extends EntityResourc
         // verify the list contains no ID more than once
         validateNoDuplicateIds(list);
 
+        // get all the IDs posted to the server
+        final Set<UUID> postedIds = list.stream().filter(e -> e.getId() != null)
+                .map(BaseEntity::getId).collect(Collectors.toSet());
+
         // collect all the old entities by ID
-        final Map<UUID, T> oldData = getOldData(
-                list.stream().filter(e -> e.getId() != null)
-                        .map(BaseEntity::getId).collect(Collectors.toSet())
-        );
+        final Map<UUID, T> oldData = !postedIds.isEmpty() ? getOldData(postedIds) : Collections.emptyMap();
 
         // verify that the user is authorized to save each of the posted entities
         verifyCanMergeData(list, oldData);
