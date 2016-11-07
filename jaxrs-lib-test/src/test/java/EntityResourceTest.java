@@ -15,6 +15,7 @@ import javax.inject.Inject;
 import javax.persistence.*;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+import javax.validation.constraints.Min;
 import javax.ws.rs.Path;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
@@ -23,6 +24,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
 import java.util.*;
+import java.util.function.Function;
 
 import static org.testng.AssertJUnit.assertTrue;
 
@@ -50,6 +52,17 @@ public class EntityResourceTest extends BaseTest {
                 @JoinColumn(name = "entityId")
         })
         private Set<String> strings;
+
+        @Min(0)
+        private Integer validated;
+
+        public Integer getValidated() {
+            return validated;
+        }
+
+        public void setValidated(Integer validated) {
+            this.validated = validated;
+        }
 
         public String getHometown() {
             return hometown;
@@ -163,6 +176,33 @@ public class EntityResourceTest extends BaseTest {
         // register the resource
         rc.register(MyEntityResource.class);
         return rc;
+    }
+
+    @Test
+    public void testValidated() {
+        final WebTarget wt = target("myentity");
+        final MyEntity me = new MyEntity();
+        me.setHometown(UUID.randomUUID().toString());
+        final Function<MyEntity, Response> fun = e -> wt.request().post(Entity.json(Collections.singletonList(e)));
+        assert fun.apply(me).getStatus() == 200;
+        me.setValidated(0);
+        me.setHometown(UUID.randomUUID().toString());
+        assert fun.apply(me).getStatus() == 200;
+
+        final ErrorResponse dupeHometown = fun.apply(me).readEntity(ErrorResponse.class);
+        assert dupeHometown.getNumErrors() == 1;
+        assert dupeHometown.getStatusCode() == 409;
+        assert dupeHometown.getRequestErrors().stream().anyMatch(
+                re -> re.getMessage() != null
+        );
+
+        me.setValidated(-1);
+        me.setHometown(UUID.randomUUID().toString());
+        final ErrorResponse badValidated = fun.apply(me).readEntity(ErrorResponse.class);
+        assert badValidated.getNumErrors() == 1;
+        assert badValidated.getRequestErrors().stream().anyMatch(
+                re -> re.getAttribute().equals("validated") && re.getMessage().equals("must be greater than or equal to 0")
+        );
     }
 
 

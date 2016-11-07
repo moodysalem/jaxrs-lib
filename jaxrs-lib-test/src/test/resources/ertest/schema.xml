@@ -3,40 +3,41 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd">
 
-    <changeSet id="create test table" author="moody.salem">
-        <createTable tableName="MyEntity">
-            <column name="id" type="CHAR(36)">
-                <constraints nullable="false" primaryKey="true"/>
-            </column>
-            <column name="created" type="BIGINT">
-                <constraints nullable="false"/>
-            </column>
-            <column name="updated" type="BIGINT">
-                <constraints nullable="false"/>
-            </column>
-            <column name="version" type="BIGINT" defaultValue="0">
-                <constraints nullable="false"/>
-            </column>
-            <column name="hometown" type="VARCHAR(191)">
-                <constraints unique="true"/>
-            </column>
-        </createTable>
-    </changeSet>
+  <changeSet id="create test table" author="moody.salem">
+    <createTable tableName="MyEntity">
+      <column name="id" type="CHAR(36)">
+        <constraints nullable="false" primaryKey="true"/>
+      </column>
+      <column name="created" type="BIGINT">
+        <constraints nullable="false"/>
+      </column>
+      <column name="updated" type="BIGINT">
+        <constraints nullable="false"/>
+      </column>
+      <column name="version" type="BIGINT" defaultValue="0">
+        <constraints nullable="false"/>
+      </column>
+      <column name="hometown" type="VARCHAR(191)">
+        <constraints unique="true"/>
+      </column>
+      <column name="validated" type="INT"/>
+    </createTable>
+  </changeSet>
 
-    <changeSet id="List table" author="moody.salem">
-        <createTable tableName="EntityStrings">
-            <column name="entityId" type="CHAR(36)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="string" type="VARCHAR(191)">
-                <constraints nullable="false"/>
-            </column>
-        </createTable>
-        <addUniqueConstraint tableName="EntityStrings" columnNames="entityId,string"/>
-        <addForeignKeyConstraint baseTableName="EntityStrings" baseColumnNames="entityId"
-                                 constraintName="FK_EntityStrings_MyEntity"
-                                 referencedTableName="MyEntity"
-                                 referencedColumnNames="id"/>
-    </changeSet>
+  <changeSet id="List table" author="moody.salem">
+    <createTable tableName="EntityStrings">
+      <column name="entityId" type="CHAR(36)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="string" type="VARCHAR(191)">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+    <addUniqueConstraint tableName="EntityStrings" columnNames="entityId,string"/>
+    <addForeignKeyConstraint baseTableName="EntityStrings" baseColumnNames="entityId"
+                             constraintName="FK_EntityStrings_MyEntity"
+                             referencedTableName="MyEntity"
+                             referencedColumnNames="id"/>
+  </changeSet>
 
 </databaseChangeLog>

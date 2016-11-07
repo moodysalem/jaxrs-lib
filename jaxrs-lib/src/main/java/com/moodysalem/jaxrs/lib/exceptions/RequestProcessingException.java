@@ -1,62 +1,44 @@
 package com.moodysalem.jaxrs.lib.exceptions;
 
 import com.moodysalem.jaxrs.lib.exceptionmappers.RequestError;
-import org.hibernate.exception.ConstraintViolationException;
 
-import javax.persistence.PersistenceException;
 import javax.validation.ConstraintViolation;
 import javax.ws.rs.core.Response;
-import java.sql.SQLException;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 
 public class RequestProcessingException extends RuntimeException {
-    public static RequestProcessingException from(Exception e) {
+    private static Throwable root(Throwable throwable) {
+        while (throwable != null && throwable.getCause() != null) {
+            throwable = throwable.getCause();
+        }
+        return throwable;
+    }
+
+    public static RequestProcessingException from(Throwable e) {
         if (e == null) {
             return null;
         }
 
-        if (e instanceof PersistenceException) {
-            final PersistenceException pe = (PersistenceException) e;
-            return new RequestProcessingException(422, pe.getCause().getMessage());
-        }
-
-        if (e instanceof ConstraintViolationException) {
-            final ConstraintViolationException cve = (ConstraintViolationException) e;
-            final StringBuilder sb = new StringBuilder();
-
-            SQLException se = cve.getSQLException();
-
-            while (se != null) {
-                if (sb.length() > 0) {
-                    sb.append(", ");
-                }
-                sb.append(se.getMessage());
-                se = se.getNextException();
-            }
-
-            return new RequestProcessingException(Response.Status.NOT_ACCEPTABLE, sb.toString());
-        }
+        e = root(e);
 
         if (e instanceof javax.validation.ConstraintViolationException) {
-            final StringBuilder sb = new StringBuilder();
-
             final javax.validation.ConstraintViolationException cve = (javax.validation.ConstraintViolationException) e;
+            final List<RequestError> errors = new LinkedList<>();
             if (cve.getConstraintViolations() != null) {
                 for (ConstraintViolation cv : cve.getConstraintViolations()) {
-                    if (sb.length() > 0) {
-                        sb.append(", ");
-                    }
                     final String prop = cv.getPropertyPath() != null ? cv.getPropertyPath().toString() : null;
                     final String error = cv.getMessage() != null ? cv.getMessage() : "unknown error";
-                    sb.append(error);
+                    errors.add(new RequestError(null, prop, error));
                 }
             }
 
-            return new RequestProcessingException(422, "Unprocessable entity");
+            return new RequestProcessingException(422, errors.stream().toArray(RequestError[]::new));
         }
 
-        return new RequestProcessingException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        return new RequestProcessingException(Response.Status.CONFLICT, e.getMessage());
     }
 
 
